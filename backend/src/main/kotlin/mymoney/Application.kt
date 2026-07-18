@@ -4,12 +4,20 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.netty.EngineMain
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import mymoney.config.loadAppConfig
 import mymoney.data.db.DatabaseFactory
 import mymoney.delivery.http.plugins.configureHttp
+import mymoney.delivery.http.routes.authRoutes
 import mymoney.delivery.http.routes.healthRoutes
+import mymoney.delivery.http.security.configureAuth
 import mymoney.di.appModule
+import mymoney.domain.usecase.auth.LoginUseCase
+import mymoney.domain.usecase.auth.LogoutAllUseCase
+import mymoney.domain.usecase.auth.RefreshTokenUseCase
+import mymoney.domain.usecase.auth.RegisterUserUseCase
+import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
@@ -27,8 +35,17 @@ fun Application.module() {
     }
 
     configureHttp()
+    configureAuth(config.jwt)
+
+    val register by inject<RegisterUserUseCase>()
+    val login by inject<LoginUseCase>()
+    val refresh by inject<RefreshTokenUseCase>()
+    val logoutAll by inject<LogoutAllUseCase>()
 
     routing {
         healthRoutes(databaseFactory.database)
+        route("/v1") {
+            authRoutes(register, login, refresh, logoutAll)
+        }
     }
 }
