@@ -12,6 +12,12 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import mymoney.domain.errors.ConflictException
+import mymoney.domain.errors.DomainException
+import mymoney.domain.errors.ForbiddenException
+import mymoney.domain.errors.NotFoundException
+import mymoney.domain.errors.UnauthorizedException
+import mymoney.domain.errors.ValidationException
 import org.slf4j.event.Level
 
 fun Application.configureHttp() {
@@ -44,6 +50,19 @@ fun Application.configureHttp() {
     }
 
     install(StatusPages) {
+        exception<DomainException> { call, cause ->
+            val status = when (cause) {
+                is NotFoundException -> HttpStatusCode.NotFound
+                is ValidationException -> HttpStatusCode.BadRequest
+                is ConflictException -> HttpStatusCode.Conflict
+                is UnauthorizedException -> HttpStatusCode.Unauthorized
+                is ForbiddenException -> HttpStatusCode.Forbidden
+            }
+            call.respond(
+                status,
+                ErrorResponse(ErrorBody(cause.code, cause.message ?: cause.code, cause.details)),
+            )
+        }
         exception<Throwable> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
             call.respond(
