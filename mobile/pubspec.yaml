@@ -33,10 +33,6 @@ dependencies:
   uuid: ^4.5.1
   logger: ^2.4.0
 
-  # Data classes / serialization
-  freezed_annotation: ^2.4.4
-  json_annotation: ^4.9.0
-
   # Secure storage for JWT refresh token (used in Etap 4)
   flutter_secure_storage: ^9.2.2
 
@@ -48,14 +44,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
-  # Code generation
+  # Code generation (only what's needed for Etap 1 — Isar).
+  # freezed / json_serializable / riverpod_generator will be added back
+  # if/when we start using them; keeping them out avoids version conflicts
+  # between isar_generator (analyzer <6) and freezed (analyzer ^6.5).
   build_runner: ^2.4.13
   isar_generator: ^3.1.0+1
-  freezed: ^2.5.7
-  json_serializable: ^6.8.0
-  riverpod_generator: ^2.4.3
-  custom_lint: ^0.6.7
-  riverpod_lint: ^2.3.13
 
 flutter:
   uses-material-design: true
