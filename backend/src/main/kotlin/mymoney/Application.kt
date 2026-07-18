@@ -11,7 +11,9 @@ import mymoney.data.db.DatabaseFactory
 import mymoney.delivery.http.plugins.configureHttp
 import mymoney.delivery.http.routes.accountRoutes
 import mymoney.delivery.http.routes.authRoutes
+import mymoney.delivery.http.routes.budgetRoutes
 import mymoney.delivery.http.routes.categoryRoutes
+import mymoney.delivery.http.routes.goalRoutes
 import mymoney.delivery.http.routes.healthRoutes
 import mymoney.delivery.http.routes.transactionRoutes
 import mymoney.delivery.http.security.configureAuth
@@ -38,6 +40,18 @@ import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
 import mymoney.domain.usecase.transaction.GetTransactionUseCase
 import mymoney.domain.usecase.transaction.ListTransactionsUseCase
 import mymoney.domain.usecase.transaction.UpdateTransactionUseCase
+import mymoney.domain.usecase.budget.CreateBudgetUseCase
+import mymoney.domain.usecase.budget.DeleteBudgetUseCase
+import mymoney.domain.usecase.budget.GetBudgetProgressUseCase
+import mymoney.domain.usecase.budget.GetBudgetUseCase
+import mymoney.domain.usecase.budget.ListBudgetsUseCase
+import mymoney.domain.usecase.budget.UpdateBudgetUseCase
+import mymoney.domain.usecase.goal.ContributeGoalUseCase
+import mymoney.domain.usecase.goal.CreateGoalUseCase
+import mymoney.domain.usecase.goal.DeleteGoalUseCase
+import mymoney.domain.usecase.goal.GetGoalUseCase
+import mymoney.domain.usecase.goal.ListGoalsUseCase
+import mymoney.domain.usecase.goal.UpdateGoalUseCase
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -84,6 +98,20 @@ fun Application.module() {
     val deleteTransaction by inject<DeleteTransactionUseCase>()
     val getTransactionHistory by inject<GetTransactionHistoryUseCase>()
 
+    val createBudget by inject<CreateBudgetUseCase>()
+    val listBudgets by inject<ListBudgetsUseCase>()
+    val getBudget by inject<GetBudgetUseCase>()
+    val updateBudget by inject<UpdateBudgetUseCase>()
+    val deleteBudget by inject<DeleteBudgetUseCase>()
+    val getBudgetProgress by inject<GetBudgetProgressUseCase>()
+
+    val createGoal by inject<CreateGoalUseCase>()
+    val listGoals by inject<ListGoalsUseCase>()
+    val getGoal by inject<GetGoalUseCase>()
+    val updateGoal by inject<UpdateGoalUseCase>()
+    val deleteGoal by inject<DeleteGoalUseCase>()
+    val contributeGoal by inject<ContributeGoalUseCase>()
+
     routing {
         healthRoutes(databaseFactory.database)
         route("/v1") {
@@ -111,6 +139,22 @@ fun Application.module() {
                 update = updateTransaction,
                 delete = deleteTransaction,
                 history = getTransactionHistory,
+            )
+            budgetRoutes(
+                create = createBudget,
+                list = listBudgets,
+                get = getBudget,
+                update = updateBudget,
+                delete = deleteBudget,
+                progress = getBudgetProgress,
+            )
+            goalRoutes(
+                create = createGoal,
+                list = listGoals,
+                get = getGoal,
+                update = updateGoal,
+                delete = deleteGoal,
+                contribute = contributeGoal,
             )
         }
     }

@@ -15,6 +15,7 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import mymoney.delivery.http.dto.AccountDto
 import mymoney.delivery.http.dto.ArchiveAccountRequest
 import mymoney.delivery.http.dto.AuthSessionResponse
@@ -49,7 +50,7 @@ class AccountRoutesIntegrationTest {
         val email = "acc-${UUID.randomUUID()}@example.com"
         val resp = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }
         val session = json.decodeFromString<AuthSessionResponse>(resp.bodyAsText())
         return TestUser(session.familyId, session.userId, session.accessToken)
@@ -65,8 +66,7 @@ class AccountRoutesIntegrationTest {
         header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
         contentType(ContentType.Application.Json)
         setBody(
-            json.encodeToString(
-                CreateAccountRequest(
+            json.encodeToString<CreateAccountRequest>(CreateAccountRequest(
                     id = id.toString(),
                     name = name,
                     type = type,
@@ -106,8 +106,7 @@ class AccountRoutesIntegrationTest {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
             setBody(
-                json.encodeToString(
-                    UpdateAccountRequest(name = "Wallet+", type = "cash", currency = "RUB", initialBalance = 1_000_00L),
+                json.encodeToString<UpdateAccountRequest>(UpdateAccountRequest(name = "Wallet+", type = "cash", currency = "RUB", initialBalance = 1_000_00L),
                 ),
             )
         }
@@ -119,7 +118,7 @@ class AccountRoutesIntegrationTest {
         val archived = client.post("/v1/accounts/$accountId/archive") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(ArchiveAccountRequest(archived = true)))
+            setBody(json.encodeToString<ArchiveAccountRequest>(ArchiveAccountRequest(archived = true)))
         }
         assertEquals(HttpStatusCode.OK, archived.status)
         assertTrue(json.decodeFromString<AccountDto>(archived.bodyAsText()).isArchived)
@@ -135,7 +134,7 @@ class AccountRoutesIntegrationTest {
         val unarchived = client.post("/v1/accounts/$accountId/archive") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(ArchiveAccountRequest(archived = false)))
+            setBody(json.encodeToString<ArchiveAccountRequest>(ArchiveAccountRequest(archived = false)))
         }
         assertEquals(HttpStatusCode.OK, unarchived.status)
         assertTrue(!json.decodeFromString<AccountDto>(unarchived.bodyAsText()).isArchived)
@@ -159,8 +158,7 @@ class AccountRoutesIntegrationTest {
             header(HttpHeaders.Authorization, "Bearer ${bob.accessToken}")
             contentType(ContentType.Application.Json)
             setBody(
-                json.encodeToString(
-                    UpdateAccountRequest("hacked", "cash", "RUB", 0L),
+                json.encodeToString<UpdateAccountRequest>(UpdateAccountRequest("hacked", "cash", "RUB", 0L),
                 ),
             )
         }
@@ -178,8 +176,7 @@ class AccountRoutesIntegrationTest {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
             setBody(
-                json.encodeToString(
-                    CreateAccountRequest(UUID.randomUUID().toString(), "N", "cash", "USD", 0L),
+                json.encodeToString<CreateAccountRequest>(CreateAccountRequest(UUID.randomUUID().toString(), "N", "cash", "USD", 0L),
                 ),
             )
         }

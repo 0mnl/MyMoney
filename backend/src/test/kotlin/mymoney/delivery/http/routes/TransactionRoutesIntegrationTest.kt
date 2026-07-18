@@ -16,6 +16,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import mymoney.delivery.http.dto.AccountDto
 import mymoney.delivery.http.dto.AuthSessionResponse
 import mymoney.delivery.http.dto.CategoryDto
@@ -53,7 +54,7 @@ class TransactionRoutesIntegrationTest {
         val email = "tx-${UUID.randomUUID()}@example.com"
         val resp = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }
         val s = json.decodeFromString<AuthSessionResponse>(resp.bodyAsText())
         return TestUser(s.familyId, s.userId, s.accessToken)
@@ -64,7 +65,7 @@ class TransactionRoutesIntegrationTest {
         val res = client.post("/v1/accounts") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(CreateAccountRequest(id.toString(), name, "cash", "RUB", 0L)))
+            setBody(json.encodeToString<CreateAccountRequest>(CreateAccountRequest(id.toString(), name, "cash", "RUB", 0L)))
         }
         return json.decodeFromString(res.bodyAsText())
     }
@@ -88,8 +89,7 @@ class TransactionRoutesIntegrationTest {
         header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
         contentType(ContentType.Application.Json)
         setBody(
-            json.encodeToString(
-                CreateTransactionRequest(
+            json.encodeToString<CreateTransactionRequest>(CreateTransactionRequest(
                     id = UUID.randomUUID().toString(),
                     accountId = accountId,
                     type = type,
@@ -229,8 +229,7 @@ class TransactionRoutesIntegrationTest {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
             setBody(
-                json.encodeToString(
-                    UpdateTransactionRequest(
+                json.encodeToString<UpdateTransactionRequest>(UpdateTransactionRequest(
                         accountId = account.id,
                         type = "EXPENSE",
                         amount = 250_00L,

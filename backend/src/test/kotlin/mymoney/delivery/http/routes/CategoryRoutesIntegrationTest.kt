@@ -15,6 +15,7 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import mymoney.delivery.http.dto.ArchiveCategoryRequest
 import mymoney.delivery.http.dto.AuthSessionResponse
 import mymoney.delivery.http.dto.CategoryDto
@@ -46,7 +47,7 @@ class CategoryRoutesIntegrationTest {
         val email = "cat-${UUID.randomUUID()}@example.com"
         val resp = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }
         val s = json.decodeFromString<AuthSessionResponse>(resp.bodyAsText())
         return TestUser(s.familyId, s.accessToken)
@@ -70,8 +71,7 @@ class CategoryRoutesIntegrationTest {
         header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
         contentType(ContentType.Application.Json)
         setBody(
-            json.encodeToString(
-                CreateCategoryRequest(
+            json.encodeToString<CreateCategoryRequest>(CreateCategoryRequest(
                     id = id.toString(),
                     name = name,
                     type = type,
@@ -179,7 +179,7 @@ class CategoryRoutesIntegrationTest {
         val rename = client.put("/v1/categories/${system.id}") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(UpdateCategoryRequest("Renamed", system.isMandatory, null, null)))
+            setBody(json.encodeToString<UpdateCategoryRequest>(UpdateCategoryRequest("Renamed", system.isMandatory, null, null)))
         }
         assertEquals(HttpStatusCode.OK, rename.status)
 
@@ -199,7 +199,7 @@ class CategoryRoutesIntegrationTest {
         val archived = client.post("/v1/categories/${system.id}/archive") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(ArchiveCategoryRequest(true)))
+            setBody(json.encodeToString<ArchiveCategoryRequest>(ArchiveCategoryRequest(true)))
         }
         assertEquals(HttpStatusCode.OK, archived.status)
 

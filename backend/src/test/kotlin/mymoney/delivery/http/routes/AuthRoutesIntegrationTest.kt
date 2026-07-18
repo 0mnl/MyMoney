@@ -12,6 +12,7 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import mymoney.delivery.http.dto.AuthSessionResponse
 import mymoney.delivery.http.dto.AuthTokensResponse
 import mymoney.delivery.http.dto.LoginRequest
@@ -51,7 +52,7 @@ class AuthRoutesIntegrationTest {
 
         val ok = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }
         assertEquals(HttpStatusCode.OK, ok.status)
         val session = ok.decode<AuthSessionResponse>()
@@ -61,7 +62,7 @@ class AuthRoutesIntegrationTest {
 
         val dup = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }
         assertEquals(HttpStatusCode.Conflict, dup.status)
     }
@@ -74,18 +75,18 @@ class AuthRoutesIntegrationTest {
 
         client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, password)))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, password)))
         }
 
         val ok = client.post("/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(LoginRequest(email, password)))
+            setBody(json.encodeToString<LoginRequest>(LoginRequest(email, password)))
         }
         assertEquals(HttpStatusCode.OK, ok.status)
 
         val bad = client.post("/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(LoginRequest(email, "wrong-password")))
+            setBody(json.encodeToString<LoginRequest>(LoginRequest(email, "wrong-password")))
         }
         assertEquals(HttpStatusCode.Unauthorized, bad.status)
     }
@@ -96,12 +97,12 @@ class AuthRoutesIntegrationTest {
         val email = "refresh-${UUID.randomUUID()}@example.com"
         val register = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }.decode<AuthSessionResponse>()
 
         val rotated = client.post("/v1/auth/refresh") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RefreshRequest(register.refreshToken)))
+            setBody(json.encodeToString<RefreshRequest>(RefreshRequest(register.refreshToken)))
         }
         assertEquals(HttpStatusCode.OK, rotated.status)
         val pair = rotated.decode<AuthTokensResponse>()
@@ -111,7 +112,7 @@ class AuthRoutesIntegrationTest {
         // Reusing the original refresh must fail — it has been revoked.
         val replay = client.post("/v1/auth/refresh") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RefreshRequest(register.refreshToken)))
+            setBody(json.encodeToString<RefreshRequest>(RefreshRequest(register.refreshToken)))
         }
         assertEquals(HttpStatusCode.Unauthorized, replay.status)
     }
@@ -122,7 +123,7 @@ class AuthRoutesIntegrationTest {
         val email = "logout-${UUID.randomUUID()}@example.com"
         val session = client.post("/v1/auth/register") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
+            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
         }.decode<AuthSessionResponse>()
 
         val logout = client.post("/v1/auth/logout-all") {
@@ -132,7 +133,7 @@ class AuthRoutesIntegrationTest {
 
         val afterLogout = client.post("/v1/auth/refresh") {
             contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RefreshRequest(session.refreshToken)))
+            setBody(json.encodeToString<RefreshRequest>(RefreshRequest(session.refreshToken)))
         }
         assertEquals(HttpStatusCode.Unauthorized, afterLogout.status)
     }

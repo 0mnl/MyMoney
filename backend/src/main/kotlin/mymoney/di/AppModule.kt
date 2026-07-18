@@ -5,9 +5,11 @@ import mymoney.config.DbConfig
 import mymoney.config.JwtConfig
 import mymoney.data.db.DatabaseFactory
 import mymoney.data.repository.AccountRepositoryImpl
+import mymoney.data.repository.BudgetRepositoryImpl
 import mymoney.data.repository.CategoryRepositoryImpl
 import mymoney.data.repository.FamilyMemberRepositoryImpl
 import mymoney.data.repository.FamilyRepositoryImpl
+import mymoney.data.repository.GoalRepositoryImpl
 import mymoney.data.repository.RefreshTokenRepositoryImpl
 import mymoney.data.repository.TransactionHistoryRepositoryImpl
 import mymoney.data.repository.TransactionRepositoryImpl
@@ -15,9 +17,11 @@ import mymoney.data.repository.UserRepositoryImpl
 import mymoney.data.security.Argon2PasswordHasher
 import mymoney.data.security.JwtTokenService
 import mymoney.domain.repository.AccountRepository
+import mymoney.domain.repository.BudgetRepository
 import mymoney.domain.repository.CategoryRepository
 import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
+import mymoney.domain.repository.GoalRepository
 import mymoney.domain.repository.RefreshTokenRepository
 import mymoney.domain.repository.TransactionHistoryRepository
 import mymoney.domain.repository.TransactionRepository
@@ -47,6 +51,18 @@ import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
 import mymoney.domain.usecase.transaction.GetTransactionUseCase
 import mymoney.domain.usecase.transaction.ListTransactionsUseCase
 import mymoney.domain.usecase.transaction.UpdateTransactionUseCase
+import mymoney.domain.usecase.budget.CreateBudgetUseCase
+import mymoney.domain.usecase.budget.DeleteBudgetUseCase
+import mymoney.domain.usecase.budget.GetBudgetProgressUseCase
+import mymoney.domain.usecase.budget.GetBudgetUseCase
+import mymoney.domain.usecase.budget.ListBudgetsUseCase
+import mymoney.domain.usecase.budget.UpdateBudgetUseCase
+import mymoney.domain.usecase.goal.ContributeGoalUseCase
+import mymoney.domain.usecase.goal.CreateGoalUseCase
+import mymoney.domain.usecase.goal.DeleteGoalUseCase
+import mymoney.domain.usecase.goal.GetGoalUseCase
+import mymoney.domain.usecase.goal.ListGoalsUseCase
+import mymoney.domain.usecase.goal.UpdateGoalUseCase
 import org.koin.dsl.module
 
 fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
@@ -68,6 +84,8 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single<CategoryRepository> { CategoryRepositoryImpl(get()) }
     single<TransactionRepository> { TransactionRepositoryImpl(get()) }
     single<TransactionHistoryRepository> { TransactionHistoryRepositoryImpl(get()) }
+    single<BudgetRepository> { BudgetRepositoryImpl(get()) }
+    single<GoalRepository> { GoalRepositoryImpl(get()) }
 
     // Security
     single<PasswordHasher> { Argon2PasswordHasher() }
@@ -103,4 +121,20 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single { UpdateTransactionUseCase(get(), get(), get()) }
     single { DeleteTransactionUseCase(get()) }
     single { GetTransactionHistoryUseCase(get(), get()) }
+
+    // Budget use cases
+    single { CreateBudgetUseCase(get(), get()) }
+    single { ListBudgetsUseCase(get()) }
+    single { GetBudgetUseCase(get()) }
+    single { UpdateBudgetUseCase(get()) }
+    single { DeleteBudgetUseCase(get()) }
+    single { GetBudgetProgressUseCase(get()) }
+
+    // Goal use cases
+    single { CreateGoalUseCase(get()) }
+    single { ListGoalsUseCase(get()) }
+    single { GetGoalUseCase(get()) }
+    single { UpdateGoalUseCase(get()) }
+    single { DeleteGoalUseCase(get()) }
+    single { ContributeGoalUseCase(get()) }
 }
