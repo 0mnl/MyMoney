@@ -46,14 +46,18 @@ class CalculatePeriodAnalytics {
     final categoryTotals = <String, int>{};
 
     for (final tx in txInPeriod) {
-      if (tx.type.name == 'income') {
-        totalIncomeKopecks += tx.amountKopecks;
-      } else if (tx.type.name == 'expense') {
-        totalExpenseKopecks += tx.amountKopecks;
-        if (tx.categoryId != null) {
-          categoryTotals[tx.categoryId!] =
-              (categoryTotals[tx.categoryId!] ?? 0) + tx.amountKopecks;
-        }
+      switch (tx.type) {
+        case TransactionType.income:
+          totalIncomeKopecks += tx.amountKopecks;
+        case TransactionType.expense:
+          totalExpenseKopecks += tx.amountKopecks;
+          if (tx.categoryId != null) {
+            categoryTotals[tx.categoryId!] =
+                (categoryTotals[tx.categoryId!] ?? 0) + tx.amountKopecks;
+          }
+        case TransactionType.transfer:
+          // Transfers don't contribute to income/expense totals or analytics
+          break;
       }
     }
 
