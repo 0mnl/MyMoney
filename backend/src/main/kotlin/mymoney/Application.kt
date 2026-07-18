@@ -11,6 +11,7 @@ import mymoney.data.db.DatabaseFactory
 import mymoney.delivery.http.plugins.configureHttp
 import mymoney.delivery.http.routes.accountRoutes
 import mymoney.delivery.http.routes.authRoutes
+import mymoney.delivery.http.routes.categoryRoutes
 import mymoney.delivery.http.routes.healthRoutes
 import mymoney.delivery.http.security.configureAuth
 import mymoney.di.appModule
@@ -24,6 +25,12 @@ import mymoney.domain.usecase.auth.LoginUseCase
 import mymoney.domain.usecase.auth.LogoutAllUseCase
 import mymoney.domain.usecase.auth.RefreshTokenUseCase
 import mymoney.domain.usecase.auth.RegisterUserUseCase
+import mymoney.domain.usecase.category.ArchiveCategoryUseCase
+import mymoney.domain.usecase.category.CreateCategoryUseCase
+import mymoney.domain.usecase.category.DeleteCategoryUseCase
+import mymoney.domain.usecase.category.GetCategoryUseCase
+import mymoney.domain.usecase.category.ListCategoriesUseCase
+import mymoney.domain.usecase.category.UpdateCategoryUseCase
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -56,6 +63,13 @@ fun Application.module() {
     val archiveAccount by inject<ArchiveAccountUseCase>()
     val deleteAccount by inject<DeleteAccountUseCase>()
 
+    val createCategory by inject<CreateCategoryUseCase>()
+    val listCategories by inject<ListCategoriesUseCase>()
+    val getCategory by inject<GetCategoryUseCase>()
+    val updateCategory by inject<UpdateCategoryUseCase>()
+    val archiveCategory by inject<ArchiveCategoryUseCase>()
+    val deleteCategory by inject<DeleteCategoryUseCase>()
+
     routing {
         healthRoutes(databaseFactory.database)
         route("/v1") {
@@ -67,6 +81,14 @@ fun Application.module() {
                 update = updateAccount,
                 archive = archiveAccount,
                 delete = deleteAccount,
+            )
+            categoryRoutes(
+                create = createCategory,
+                list = listCategories,
+                get = getCategory,
+                update = updateCategory,
+                archive = archiveCategory,
+                delete = deleteCategory,
             )
         }
     }

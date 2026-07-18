@@ -21,4 +21,7 @@ interface CategoryRepository {
      * this rule; the use case does.
      */
     suspend fun softDelete(id: UUID)
+
+    /** True if [parentId] has any non-deleted children. Used by delete rule. */
+    suspend fun hasActiveChildren(parentId: UUID): Boolean
 }

@@ -13,6 +13,7 @@ import mymoney.domain.repository.RefreshTokenRepository
 import mymoney.domain.repository.UserRepository
 import mymoney.domain.security.PasswordHasher
 import mymoney.domain.security.TokenService
+import mymoney.domain.usecase.category.SeedSystemCategoriesUseCase
 import java.util.UUID
 
 /**
@@ -29,6 +30,7 @@ class RegisterUserUseCase(
     private val refreshTokens: RefreshTokenRepository,
     private val passwordHasher: PasswordHasher,
     private val tokenService: TokenService,
+    private val seedSystemCategories: SeedSystemCategoriesUseCase,
     private val clock: Clock = Clock.System,
 ) {
 
@@ -74,6 +76,7 @@ class RegisterUserUseCase(
                 joinedAt = now,
             ),
         )
+        seedSystemCategories.execute(familyId)
 
         val access = tokenService.issueAccessToken(userId, familyId)
         val refresh = tokenService.issueRefreshToken()
