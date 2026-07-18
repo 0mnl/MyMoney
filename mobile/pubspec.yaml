@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State management (see ADR-0001)
   flutter_riverpod: ^2.5.1
@@ -35,8 +37,11 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
 
-  # Secure storage for JWT refresh token
+  # Secure storage for JWT refresh token (used in Etap 4)
   flutter_secure_storage: ^9.2.2
+
+  # Non-secret user preferences (userId, familyId, first-launch seed flag)
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
