@@ -15,11 +15,10 @@ import mymoney.config.JwtConfig
 import mymoney.delivery.http.plugins.ErrorBody
 import mymoney.delivery.http.plugins.ErrorResponse
 import mymoney.domain.errors.UnauthorizedException
+import mymoney.domain.model.UserContext
 import java.util.UUID
 
 const val AUTH_ACCESS = "access"
-
-data class UserContext(val userId: UUID, val familyId: UUID)
 
 fun Application.configureAuth(config: JwtConfig) {
     install(Authentication) {
