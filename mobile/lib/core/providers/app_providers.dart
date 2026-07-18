@@ -5,13 +5,19 @@ import 'package:uuid/uuid.dart';
 import '../../data/local/isar_service.dart';
 import '../../data/local/seed_data.dart';
 import '../../data/repository/local_account_repository.dart';
+import '../../data/repository/local_budget_repository.dart';
 import '../../data/repository/local_category_repository.dart';
+import '../../data/repository/local_goal_repository.dart';
 import '../../data/repository/local_transaction_repository.dart';
 import '../../domain/model/account.dart';
+import '../../domain/model/budget.dart';
 import '../../domain/model/category.dart';
+import '../../domain/model/goal.dart';
 import '../../domain/model/transaction.dart';
 import '../../domain/repository/account_repository.dart';
+import '../../domain/repository/budget_repository.dart';
 import '../../domain/repository/category_repository.dart';
+import '../../domain/repository/goal_repository.dart';
 import '../../domain/repository/transaction_repository.dart';
 
 /// Fake single-user context for Etap 1 — no auth yet on the client.
@@ -79,6 +85,16 @@ final transactionRepositoryProvider = FutureProvider<TransactionRepository>((ref
   return LocalTransactionRepository(s.isar);
 });
 
+final budgetRepositoryProvider = FutureProvider<BudgetRepository>((ref) async {
+  final s = await ref.watch(isarServiceProvider.future);
+  return LocalBudgetRepository(s.isar);
+});
+
+final goalRepositoryProvider = FutureProvider<GoalRepository>((ref) async {
+  final s = await ref.watch(isarServiceProvider.future);
+  return LocalGoalRepository(s.isar);
+});
+
 /// Live streams — presentation subscribes to these, so any Isar write from
 /// anywhere immediately updates every screen.
 final accountsStreamProvider = StreamProvider<List<Account>>((ref) async* {
@@ -96,5 +112,17 @@ final categoriesStreamProvider = StreamProvider<List<Category>>((ref) async* {
 final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) async* {
   final session = await ref.watch(bootstrapProvider.future);
   final repo = await ref.watch(transactionRepositoryProvider.future);
+  yield* repo.watchByFamily(session.familyId);
+});
+
+final budgetsStreamProvider = StreamProvider<List<Budget>>((ref) async* {
+  final session = await ref.watch(bootstrapProvider.future);
+  final repo = await ref.watch(budgetRepositoryProvider.future);
+  yield* repo.watchByFamily(session.familyId);
+});
+
+final goalsStreamProvider = StreamProvider<List<Goal>>((ref) async* {
+  final session = await ref.watch(bootstrapProvider.future);
+  final repo = await ref.watch(goalRepositoryProvider.future);
   yield* repo.watchByFamily(session.familyId);
 });

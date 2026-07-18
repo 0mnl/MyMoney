@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
+import 'budgets_screen.dart';
+import 'goals_screen.dart';
 import 'home_tab.dart';
 import 'transactions_screen.dart';
 
@@ -23,6 +25,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     HomeTab(),
     AccountsScreen(),
     TransactionsScreen(),
+    BudgetsScreen(),
+    GoalsScreen(),
   ];
 
   @override
@@ -45,6 +49,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Главная'),
           NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Счета'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Операции'),
+          NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Бюджет'),
+          NavigationDestination(icon: Icon(Icons.flag_outlined), selectedIcon: Icon(Icons.flag), label: 'Цели'),
         ],
       ),
     );
