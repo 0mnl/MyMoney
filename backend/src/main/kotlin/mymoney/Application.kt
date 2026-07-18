@@ -13,6 +13,7 @@ import mymoney.delivery.http.routes.accountRoutes
 import mymoney.delivery.http.routes.authRoutes
 import mymoney.delivery.http.routes.categoryRoutes
 import mymoney.delivery.http.routes.healthRoutes
+import mymoney.delivery.http.routes.transactionRoutes
 import mymoney.delivery.http.security.configureAuth
 import mymoney.di.appModule
 import mymoney.domain.usecase.account.ArchiveAccountUseCase
@@ -31,6 +32,12 @@ import mymoney.domain.usecase.category.DeleteCategoryUseCase
 import mymoney.domain.usecase.category.GetCategoryUseCase
 import mymoney.domain.usecase.category.ListCategoriesUseCase
 import mymoney.domain.usecase.category.UpdateCategoryUseCase
+import mymoney.domain.usecase.transaction.CreateTransactionUseCase
+import mymoney.domain.usecase.transaction.DeleteTransactionUseCase
+import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
+import mymoney.domain.usecase.transaction.GetTransactionUseCase
+import mymoney.domain.usecase.transaction.ListTransactionsUseCase
+import mymoney.domain.usecase.transaction.UpdateTransactionUseCase
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -70,6 +77,13 @@ fun Application.module() {
     val archiveCategory by inject<ArchiveCategoryUseCase>()
     val deleteCategory by inject<DeleteCategoryUseCase>()
 
+    val createTransaction by inject<CreateTransactionUseCase>()
+    val listTransactions by inject<ListTransactionsUseCase>()
+    val getTransaction by inject<GetTransactionUseCase>()
+    val updateTransaction by inject<UpdateTransactionUseCase>()
+    val deleteTransaction by inject<DeleteTransactionUseCase>()
+    val getTransactionHistory by inject<GetTransactionHistoryUseCase>()
+
     routing {
         healthRoutes(databaseFactory.database)
         route("/v1") {
@@ -89,6 +103,14 @@ fun Application.module() {
                 update = updateCategory,
                 archive = archiveCategory,
                 delete = deleteCategory,
+            )
+            transactionRoutes(
+                create = createTransaction,
+                list = listTransactions,
+                get = getTransaction,
+                update = updateTransaction,
+                delete = deleteTransaction,
+                history = getTransactionHistory,
             )
         }
     }
