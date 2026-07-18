@@ -1,0 +1,55 @@
+# === Общее ===
+.DS_Store
+*.log
+*.env
+.env
+.env.local
+.env.*.local
+
+# === IDE / инструменты ===
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.claude/
+
+# === Backend (Kotlin/Gradle) ===
+backend/.gradle/
+backend/build/
+backend/out/
+backend/**/build/
+backend/**/.gradle/
+backend/local.properties
+backend/gradle-app.setting
+
+# === Mobile (Flutter/Dart) ===
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/**/generated_plugin_registrant.dart
+mobile/**/*.g.dart
+mobile/**/*.freezed.dart
+mobile/**/*.mocks.dart
+mobile/ios/Pods/
+mobile/ios/Flutter/Flutter.framework/
+mobile/ios/Flutter/Flutter.podspec
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/**/build/
+mobile/android/**/GeneratedPluginRegistrant.java
+mobile/android/**/GeneratedPluginRegistrant.kt
+mobile/coverage/
+
+# === Docker/DB ===
+postgres-data/
+*.pgdata/
+
+# === Секреты (никогда не коммитить) ===
+*.pem
+*.key
+secrets/
