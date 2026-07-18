@@ -39,6 +39,13 @@ dependencies:
   # Non-secret user preferences (userId, familyId, first-launch seed flag)
   shared_preferences: ^2.3.2
 
+  # Analytics & charting (Etap 3)
+  fl_chart: ^0.68.0
+
+  # PDF generation & export (Etap 3)
+  pdf: ^3.11.0
+  printing: ^5.12.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
