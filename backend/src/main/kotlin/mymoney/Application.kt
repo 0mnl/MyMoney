@@ -16,6 +16,7 @@ import mymoney.delivery.http.routes.categoryRoutes
 import mymoney.delivery.http.routes.familyRoutes
 import mymoney.delivery.http.routes.goalRoutes
 import mymoney.delivery.http.routes.healthRoutes
+import mymoney.delivery.http.routes.syncRoutes
 import mymoney.delivery.http.routes.transactionRoutes
 import mymoney.delivery.http.security.configureAuth
 import mymoney.di.appModule
@@ -38,6 +39,8 @@ import mymoney.domain.usecase.category.UpdateCategoryUseCase
 import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
 import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
 import mymoney.domain.usecase.family.ListFamilyMembersUseCase
+import mymoney.domain.usecase.sync.PullChangesUseCase
+import mymoney.domain.usecase.sync.PushChangesUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
 import mymoney.domain.usecase.transaction.DeleteTransactionUseCase
 import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
@@ -113,6 +116,9 @@ fun Application.module() {
     val acceptFamily by inject<AcceptFamilyInviteUseCase>()
     val listFamilyMembers by inject<ListFamilyMembersUseCase>()
 
+    val pullSync by inject<PullChangesUseCase>()
+    val pushSync by inject<PushChangesUseCase>()
+
     val createGoal by inject<CreateGoalUseCase>()
     val listGoals by inject<ListGoalsUseCase>()
     val getGoal by inject<GetGoalUseCase>()
@@ -169,6 +175,7 @@ fun Application.module() {
                 accept = acceptFamily,
                 listMembers = listFamilyMembers,
             )
+            syncRoutes(pull = pullSync, push = pushSync)
         }
     }
 }

@@ -10,6 +10,7 @@ import mymoney.data.repository.CategoryRepositoryImpl
 import mymoney.data.repository.FamilyInviteRepositoryImpl
 import mymoney.data.repository.FamilyMemberRepositoryImpl
 import mymoney.data.repository.FamilyRepositoryImpl
+import mymoney.data.repository.SyncRepositoryImpl
 import mymoney.data.repository.GoalRepositoryImpl
 import mymoney.data.repository.RefreshTokenRepositoryImpl
 import mymoney.data.repository.TransactionHistoryRepositoryImpl
@@ -25,6 +26,7 @@ import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
 import mymoney.domain.repository.GoalRepository
 import mymoney.domain.repository.RefreshTokenRepository
+import mymoney.domain.repository.SyncRepository
 import mymoney.domain.repository.TransactionHistoryRepository
 import mymoney.domain.repository.TransactionRepository
 import mymoney.domain.repository.UserRepository
@@ -51,6 +53,8 @@ import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
 import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
 import mymoney.domain.usecase.family.InviteTokenGenerator
 import mymoney.domain.usecase.family.ListFamilyMembersUseCase
+import mymoney.domain.usecase.sync.PullChangesUseCase
+import mymoney.domain.usecase.sync.PushChangesUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
 import mymoney.domain.usecase.transaction.DeleteTransactionUseCase
 import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
@@ -93,6 +97,7 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single<TransactionHistoryRepository> { TransactionHistoryRepositoryImpl(get()) }
     single<BudgetRepository> { BudgetRepositoryImpl(get()) }
     single<GoalRepository> { GoalRepositoryImpl(get()) }
+    single<SyncRepository> { SyncRepositoryImpl(get()) }
 
     // Security
     single<PasswordHasher> { Argon2PasswordHasher() }
@@ -142,6 +147,10 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single { InviteFamilyMemberUseCase(get(), get(), get(), get()) }
     single { AcceptFamilyInviteUseCase(get(), get(), get()) }
     single { ListFamilyMembersUseCase(get()) }
+
+    // Sync use cases
+    single { PullChangesUseCase(get()) }
+    single { PushChangesUseCase(get()) }
 
     // Goal use cases
     single { CreateGoalUseCase(get()) }
