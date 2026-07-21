@@ -1,8 +1,8 @@
 import '../model/analytics.dart';
 import '../model/enums.dart';
-import '../../data/local/repositories/transaction_repository.dart';
-import '../../data/local/repositories/budget_repository.dart';
-import '../../data/local/repositories/category_repository.dart';
+import '../repository/budget_repository.dart';
+import '../repository/category_repository.dart';
+import '../repository/transaction_repository.dart';
 
 /// Compute analytics aggregations for a given period.
 /// Pure business logic: filters transactions by period, groups by category,
@@ -80,7 +80,7 @@ class CalculatePeriodAnalytics {
         categoryName: category.name,
         totalKopecks: total,
         percentageOfTotal: percentage,
-        colorValue: category.color,
+        colorValue: _parseHexColor(category.color),
       );
     }
 
@@ -128,5 +128,15 @@ class CalculatePeriodAnalytics {
     // Simplified: if budget starts before analytics period ends, consider it overlapping
     // (A production implementation would compute exact period ranges and check overlap)
     return budgetStart.isBefore(analyticsPeriodEnd);
+  }
+
+  /// Category.color может быть в форматах "#RRGGBB" / "#AARRGGBB" / просто
+  /// "AARRGGBB". Возвращаем null для нераспарсиваемых значений, чтобы UI
+  /// откатился на дефолтный цвет вместо падения.
+  static int? _parseHexColor(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    var clean = hex.replaceAll('#', '').trim();
+    if (clean.length == 6) clean = 'FF$clean';
+    return int.tryParse(clean, radix: 16);
   }
 }

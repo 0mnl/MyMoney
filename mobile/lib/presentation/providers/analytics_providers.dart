@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_providers.dart';
 import '../../domain/model/analytics.dart';
-import '../../domain/model/enums.dart';
+import '../../domain/model/budget.dart';
 import '../../domain/usecase/calculate_period_analytics.dart';
 
 /// Selected period type for analytics display (week/month/year).

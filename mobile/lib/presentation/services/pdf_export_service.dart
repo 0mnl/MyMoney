@@ -1,10 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/model/analytics.dart';
-import '../../domain/model/enums.dart';
+import '../../domain/model/budget.dart';
 import '../../domain/model/money.dart';
 
 /// Service for generating and exporting PDF reports.
@@ -57,8 +59,9 @@ class PdfExportService {
     required List<int> pdfBytes,
     required String filename,
   }) async {
-    return await Printing.sharePdf(
-      bytes: pdfBytes,
+    final bytes = pdfBytes is Uint8List ? pdfBytes : Uint8List.fromList(pdfBytes);
+    return Printing.sharePdf(
+      bytes: bytes,
       filename: filename,
     );
   }

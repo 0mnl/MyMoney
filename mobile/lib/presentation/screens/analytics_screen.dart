@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/providers/app_providers.dart';
 import '../../domain/model/analytics.dart';
-import '../../domain/model/enums.dart';
+import '../../domain/model/budget.dart';
 import '../../domain/model/money.dart';
 import '../providers/analytics_providers.dart';
 import '../services/pdf_export_service.dart';
@@ -46,7 +46,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: _buildPieChart(analytics),
+                      child: _buildPieChart(context, analytics),
                     ),
                   )
                 else
@@ -162,7 +162,7 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPieChart(PeriodAnalytics analytics) {
+  Widget _buildPieChart(BuildContext context, PeriodAnalytics analytics) {
     final categorySpends = analytics.categoryBreakdown.values.toList()
       ..sort((a, b) => b.totalKopecks.compareTo(a.totalKopecks));
 
