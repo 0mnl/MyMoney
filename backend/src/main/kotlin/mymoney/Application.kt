@@ -16,6 +16,8 @@ import mymoney.delivery.http.routes.categoryRoutes
 import mymoney.delivery.http.routes.familyRoutes
 import mymoney.delivery.http.routes.goalRoutes
 import mymoney.delivery.http.routes.healthRoutes
+import mymoney.delivery.http.routes.debtRoutes
+import mymoney.delivery.http.routes.subscriptionRoutes
 import mymoney.delivery.http.routes.syncRoutes
 import mymoney.delivery.http.routes.transactionRoutes
 import mymoney.delivery.http.security.configureAuth
@@ -39,6 +41,17 @@ import mymoney.domain.usecase.category.UpdateCategoryUseCase
 import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
 import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
 import mymoney.domain.usecase.family.ListFamilyMembersUseCase
+import mymoney.domain.usecase.debt.CreateDebtUseCase
+import mymoney.domain.usecase.debt.DeleteDebtUseCase
+import mymoney.domain.usecase.debt.GetDebtUseCase
+import mymoney.domain.usecase.debt.ListDebtsUseCase
+import mymoney.domain.usecase.debt.UpdateDebtUseCase
+import mymoney.domain.usecase.subscription.AdvanceSubscriptionUseCase
+import mymoney.domain.usecase.subscription.CreateSubscriptionUseCase
+import mymoney.domain.usecase.subscription.DeleteSubscriptionUseCase
+import mymoney.domain.usecase.subscription.GetSubscriptionUseCase
+import mymoney.domain.usecase.subscription.ListSubscriptionsUseCase
+import mymoney.domain.usecase.subscription.UpdateSubscriptionUseCase
 import mymoney.domain.usecase.sync.PullChangesUseCase
 import mymoney.domain.usecase.sync.PushChangesUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
@@ -119,6 +132,19 @@ fun Application.module() {
     val pullSync by inject<PullChangesUseCase>()
     val pushSync by inject<PushChangesUseCase>()
 
+    val createDebt by inject<CreateDebtUseCase>()
+    val listDebts by inject<ListDebtsUseCase>()
+    val getDebt by inject<GetDebtUseCase>()
+    val updateDebt by inject<UpdateDebtUseCase>()
+    val deleteDebt by inject<DeleteDebtUseCase>()
+
+    val createSubscription by inject<CreateSubscriptionUseCase>()
+    val listSubscriptions by inject<ListSubscriptionsUseCase>()
+    val getSubscription by inject<GetSubscriptionUseCase>()
+    val updateSubscription by inject<UpdateSubscriptionUseCase>()
+    val deleteSubscription by inject<DeleteSubscriptionUseCase>()
+    val advanceSubscription by inject<AdvanceSubscriptionUseCase>()
+
     val createGoal by inject<CreateGoalUseCase>()
     val listGoals by inject<ListGoalsUseCase>()
     val getGoal by inject<GetGoalUseCase>()
@@ -176,6 +202,21 @@ fun Application.module() {
                 listMembers = listFamilyMembers,
             )
             syncRoutes(pull = pullSync, push = pushSync)
+            debtRoutes(
+                create = createDebt,
+                list = listDebts,
+                get = getDebt,
+                update = updateDebt,
+                delete = deleteDebt,
+            )
+            subscriptionRoutes(
+                create = createSubscription,
+                list = listSubscriptions,
+                get = getSubscription,
+                update = updateSubscription,
+                delete = deleteSubscription,
+                advance = advanceSubscription,
+            )
         }
     }
 }

@@ -7,10 +7,15 @@ import mymoney.domain.model.Budget
 import mymoney.domain.model.BudgetPeriodType
 import mymoney.domain.model.Category
 import mymoney.domain.model.CategoryType
+import mymoney.domain.model.Debt
+import mymoney.domain.model.DebtDirection
+import mymoney.domain.model.DebtStatus
 import mymoney.domain.model.Family
 import mymoney.domain.model.FamilyMember
 import mymoney.domain.model.FamilyRole
 import mymoney.domain.model.Goal
+import mymoney.domain.model.Subscription
+import mymoney.domain.model.SubscriptionPeriod
 import mymoney.domain.model.SyncBundle
 import mymoney.domain.model.SyncPullResult
 import mymoney.domain.model.SyncPushOutcome
@@ -120,12 +125,42 @@ data class SyncFamilyMemberDto(
 )
 
 @Serializable
+data class SyncDebtDto(
+    val id: String,
+    val familyId: String,
+    val counterpartyName: String,
+    val direction: String,
+    val amountKopecks: Long,
+    val dueDate: Instant? = null,
+    val status: String,
+    val isDeleted: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+@Serializable
+data class SyncSubscriptionDto(
+    val id: String,
+    val familyId: String,
+    val name: String,
+    val amountKopecks: Long,
+    val billingPeriod: String,
+    val nextChargeDate: Instant,
+    val categoryId: String? = null,
+    val isDeleted: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+@Serializable
 data class SyncBundleDto(
     val accounts: List<SyncAccountDto> = emptyList(),
     val categories: List<SyncCategoryDto> = emptyList(),
     val transactions: List<SyncTransactionDto> = emptyList(),
     val budgets: List<SyncBudgetDto> = emptyList(),
     val goals: List<SyncGoalDto> = emptyList(),
+    val debts: List<SyncDebtDto> = emptyList(),
+    val subscriptions: List<SyncSubscriptionDto> = emptyList(),
     val families: List<SyncFamilyDto> = emptyList(),
     val familyMembers: List<SyncFamilyMemberDto> = emptyList(),
 )
@@ -219,6 +254,32 @@ fun Budget.toSyncDto() = SyncBudgetDto(
     updatedAt = updatedAt,
 )
 
+fun Debt.toSyncDto() = SyncDebtDto(
+    id = id.toString(),
+    familyId = familyId.toString(),
+    counterpartyName = counterpartyName,
+    direction = direction.name,
+    amountKopecks = amountKopecks,
+    dueDate = dueDate,
+    status = status.name,
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun Subscription.toSyncDto() = SyncSubscriptionDto(
+    id = id.toString(),
+    familyId = familyId.toString(),
+    name = name,
+    amountKopecks = amountKopecks,
+    billingPeriod = billingPeriod.name,
+    nextChargeDate = nextChargeDate,
+    categoryId = categoryId?.toString(),
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
 fun Goal.toSyncDto() = SyncGoalDto(
     id = id.toString(),
     familyId = familyId.toString(),
@@ -254,6 +315,8 @@ fun SyncBundle.toDto() = SyncBundleDto(
     transactions = transactions.map { it.toSyncDto() },
     budgets = budgets.map { it.toSyncDto() },
     goals = goals.map { it.toSyncDto() },
+    debts = debts.map { it.toSyncDto() },
+    subscriptions = subscriptions.map { it.toSyncDto() },
     families = families.map { it.toSyncDto() },
     familyMembers = familyMembers.map { it.toSyncDto() },
 )
@@ -361,12 +424,40 @@ fun SyncFamilyMemberDto.toDomain() = FamilyMember(
     isDeleted = isDeleted,
 )
 
+fun SyncDebtDto.toDomain() = Debt(
+    id = UUID.fromString(id),
+    familyId = UUID.fromString(familyId),
+    counterpartyName = counterpartyName,
+    direction = DebtDirection.valueOf(direction),
+    amountKopecks = amountKopecks,
+    dueDate = dueDate,
+    status = DebtStatus.valueOf(status),
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun SyncSubscriptionDto.toDomain() = Subscription(
+    id = UUID.fromString(id),
+    familyId = UUID.fromString(familyId),
+    name = name,
+    amountKopecks = amountKopecks,
+    billingPeriod = SubscriptionPeriod.valueOf(billingPeriod),
+    nextChargeDate = nextChargeDate,
+    categoryId = categoryId?.let { UUID.fromString(it) },
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
 fun SyncBundleDto.toDomain() = SyncBundle(
     accounts = accounts.map { it.toDomain() },
     categories = categories.map { it.toDomain() },
     transactions = transactions.map { it.toDomain() },
     budgets = budgets.map { it.toDomain() },
     goals = goals.map { it.toDomain() },
+    debts = debts.map { it.toDomain() },
+    subscriptions = subscriptions.map { it.toDomain() },
     families = families.map { it.toDomain() },
     familyMembers = familyMembers.map { it.toDomain() },
 )

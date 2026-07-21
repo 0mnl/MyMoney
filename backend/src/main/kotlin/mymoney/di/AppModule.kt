@@ -10,6 +10,8 @@ import mymoney.data.repository.CategoryRepositoryImpl
 import mymoney.data.repository.FamilyInviteRepositoryImpl
 import mymoney.data.repository.FamilyMemberRepositoryImpl
 import mymoney.data.repository.FamilyRepositoryImpl
+import mymoney.data.repository.DebtRepositoryImpl
+import mymoney.data.repository.SubscriptionRepositoryImpl
 import mymoney.data.repository.SyncRepositoryImpl
 import mymoney.data.repository.GoalRepositoryImpl
 import mymoney.data.repository.RefreshTokenRepositoryImpl
@@ -26,6 +28,8 @@ import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
 import mymoney.domain.repository.GoalRepository
 import mymoney.domain.repository.RefreshTokenRepository
+import mymoney.domain.repository.DebtRepository
+import mymoney.domain.repository.SubscriptionRepository
 import mymoney.domain.repository.SyncRepository
 import mymoney.domain.repository.TransactionHistoryRepository
 import mymoney.domain.repository.TransactionRepository
@@ -53,6 +57,17 @@ import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
 import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
 import mymoney.domain.usecase.family.InviteTokenGenerator
 import mymoney.domain.usecase.family.ListFamilyMembersUseCase
+import mymoney.domain.usecase.debt.CreateDebtUseCase
+import mymoney.domain.usecase.debt.DeleteDebtUseCase
+import mymoney.domain.usecase.debt.GetDebtUseCase
+import mymoney.domain.usecase.debt.ListDebtsUseCase
+import mymoney.domain.usecase.debt.UpdateDebtUseCase
+import mymoney.domain.usecase.subscription.AdvanceSubscriptionUseCase
+import mymoney.domain.usecase.subscription.CreateSubscriptionUseCase
+import mymoney.domain.usecase.subscription.DeleteSubscriptionUseCase
+import mymoney.domain.usecase.subscription.GetSubscriptionUseCase
+import mymoney.domain.usecase.subscription.ListSubscriptionsUseCase
+import mymoney.domain.usecase.subscription.UpdateSubscriptionUseCase
 import mymoney.domain.usecase.sync.PullChangesUseCase
 import mymoney.domain.usecase.sync.PushChangesUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
@@ -98,6 +113,8 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single<BudgetRepository> { BudgetRepositoryImpl(get()) }
     single<GoalRepository> { GoalRepositoryImpl(get()) }
     single<SyncRepository> { SyncRepositoryImpl(get()) }
+    single<DebtRepository> { DebtRepositoryImpl(get()) }
+    single<SubscriptionRepository> { SubscriptionRepositoryImpl(get()) }
 
     // Security
     single<PasswordHasher> { Argon2PasswordHasher() }
@@ -151,6 +168,21 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     // Sync use cases
     single { PullChangesUseCase(get()) }
     single { PushChangesUseCase(get()) }
+
+    // Debt use cases
+    single { CreateDebtUseCase(get()) }
+    single { ListDebtsUseCase(get()) }
+    single { GetDebtUseCase(get()) }
+    single { UpdateDebtUseCase(get()) }
+    single { DeleteDebtUseCase(get()) }
+
+    // Subscription use cases
+    single { CreateSubscriptionUseCase(get()) }
+    single { ListSubscriptionsUseCase(get()) }
+    single { GetSubscriptionUseCase(get()) }
+    single { UpdateSubscriptionUseCase(get()) }
+    single { DeleteSubscriptionUseCase(get()) }
+    single { AdvanceSubscriptionUseCase(get()) }
 
     // Goal use cases
     single { CreateGoalUseCase(get()) }
