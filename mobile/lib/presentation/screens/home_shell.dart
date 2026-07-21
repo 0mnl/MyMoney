@@ -5,9 +5,11 @@ import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
 import 'analytics_screen.dart';
 import 'budgets_screen.dart';
+import 'debts_screen.dart';
 import 'goals_screen.dart';
 import 'home_tab.dart';
 import 'settings_screen.dart';
+import 'subscriptions_screen.dart';
 import 'transactions_screen.dart';
 
 /// Root scaffold with a bottom navigation. Settings tab hosts backend/sync/family
@@ -29,6 +31,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     TransactionsScreen(),
     BudgetsScreen(),
     GoalsScreen(),
+    DebtsScreen(),
+    SubscriptionsScreen(),
     AnalyticsScreen(),
     SettingsScreen(),
   ];
@@ -55,6 +59,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Операции'),
           NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Бюджет'),
           NavigationDestination(icon: Icon(Icons.flag_outlined), selectedIcon: Icon(Icons.flag), label: 'Цели'),
+          NavigationDestination(icon: Icon(Icons.handshake_outlined), selectedIcon: Icon(Icons.handshake), label: 'Долги'),
+          NavigationDestination(icon: Icon(Icons.autorenew_outlined), selectedIcon: Icon(Icons.autorenew), label: 'Подписки'),
           NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Статистика'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Настройки'),
         ],

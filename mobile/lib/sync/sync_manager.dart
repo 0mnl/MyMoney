@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/local/entities/account_entity.dart';
 import '../data/local/entities/budget_entity.dart';
 import '../data/local/entities/category_entity.dart';
+import '../data/local/entities/debt_entity.dart';
 import '../data/local/entities/goal_entity.dart';
+import '../data/local/entities/subscription_entity.dart';
 import '../data/local/entities/transaction_entity.dart';
 import '../data/local/isar_service.dart';
 import '../data/remote/api/sync_api.dart';
@@ -67,11 +69,7 @@ class SyncManager {
     _log.i('Pull: applied ${_bundleSize(pulled.bundle)} rows, cursor=${pulled.serverTime}');
 
     return SyncResult(
-      pushed: localBundle.accounts.length +
-          localBundle.categories.length +
-          localBundle.transactions.length +
-          localBundle.budgets.length +
-          localBundle.goals.length,
+      pushed: _bundleSize(localBundle),
       conflicts: conflicts,
       pulled: _bundleSize(pulled.bundle),
       serverTime: pulled.serverTime,
@@ -96,6 +94,12 @@ class SyncManager {
     final goals = since == null
         ? await isar.goalEntitys.where().findAll()
         : await isar.goalEntitys.filter().updatedAtGreaterThan(since).findAll();
+    final debts = since == null
+        ? await isar.debtEntitys.where().findAll()
+        : await isar.debtEntitys.filter().updatedAtGreaterThan(since).findAll();
+    final subs = since == null
+        ? await isar.subscriptionEntitys.where().findAll()
+        : await isar.subscriptionEntitys.filter().updatedAtGreaterThan(since).findAll();
 
     return SyncBundleDto(
       accounts: accounts.map((e) => e.toDomain()).toList(),
@@ -103,6 +107,8 @@ class SyncManager {
       transactions: transactions.map((e) => e.toDomain()).toList(),
       budgets: budgets.map((e) => e.toDomain()).toList(),
       goals: goals.map((e) => e.toDomain()).toList(),
+      debts: debts.map((e) => e.toDomain()).toList(),
+      subscriptions: subs.map((e) => e.toDomain()).toList(),
     );
   }
 
@@ -116,6 +122,8 @@ class SyncManager {
         transactions: [...merged.transactions, ...c.serverBundle.transactions],
         budgets: [...merged.budgets, ...c.serverBundle.budgets],
         goals: [...merged.goals, ...c.serverBundle.goals],
+        debts: [...merged.debts, ...c.serverBundle.debts],
+        subscriptions: [...merged.subscriptions, ...c.serverBundle.subscriptions],
       );
     }
     return merged;
@@ -150,6 +158,16 @@ class SyncManager {
           bundle.goals.map(GoalEntity.fromDomain).toList(),
         );
       }
+      if (bundle.debts.isNotEmpty) {
+        await isar.debtEntitys.putAll(
+          bundle.debts.map(DebtEntity.fromDomain).toList(),
+        );
+      }
+      if (bundle.subscriptions.isNotEmpty) {
+        await isar.subscriptionEntitys.putAll(
+          bundle.subscriptions.map(SubscriptionEntity.fromDomain).toList(),
+        );
+      }
     });
   }
 
@@ -158,7 +176,9 @@ class SyncManager {
       b.categories.length +
       b.transactions.length +
       b.budgets.length +
-      b.goals.length;
+      b.goals.length +
+      b.debts.length +
+      b.subscriptions.length;
 }
 
 class SyncResult {

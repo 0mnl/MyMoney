@@ -4,7 +4,9 @@ import 'package:path_provider/path_provider.dart';
 import 'entities/account_entity.dart';
 import 'entities/budget_entity.dart';
 import 'entities/category_entity.dart';
+import 'entities/debt_entity.dart';
 import 'entities/goal_entity.dart';
+import 'entities/subscription_entity.dart';
 import 'entities/transaction_entity.dart';
 
 /// Owns the Isar instance for the entire app. Opened once at startup and
@@ -24,6 +26,8 @@ class IsarService {
         TransactionEntitySchema,
         BudgetEntitySchema,
         GoalEntitySchema,
+        DebtEntitySchema,
+        SubscriptionEntitySchema,
       ],
       directory: dir.path,
       name: 'mymoney',

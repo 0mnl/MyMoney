@@ -1,8 +1,10 @@
 import '../../../domain/model/account.dart';
 import '../../../domain/model/budget.dart';
 import '../../../domain/model/category.dart';
+import '../../../domain/model/debt.dart';
 import '../../../domain/model/enums.dart';
 import '../../../domain/model/goal.dart';
+import '../../../domain/model/subscription.dart';
 import '../../../domain/model/transaction.dart';
 
 /// Wire-level bundle exchanged with /v1/sync/pull and /v1/sync/push.
@@ -17,6 +19,8 @@ class SyncBundleDto {
     this.transactions = const [],
     this.budgets = const [],
     this.goals = const [],
+    this.debts = const [],
+    this.subscriptions = const [],
   });
 
   final List<Account> accounts;
@@ -24,13 +28,17 @@ class SyncBundleDto {
   final List<Transaction> transactions;
   final List<Budget> budgets;
   final List<Goal> goals;
+  final List<Debt> debts;
+  final List<Subscription> subscriptions;
 
   bool get isEmpty =>
       accounts.isEmpty &&
       categories.isEmpty &&
       transactions.isEmpty &&
       budgets.isEmpty &&
-      goals.isEmpty;
+      goals.isEmpty &&
+      debts.isEmpty &&
+      subscriptions.isEmpty;
 
   Map<String, dynamic> toJson() => {
         'accounts': accounts.map(accountToJson).toList(),
@@ -38,6 +46,8 @@ class SyncBundleDto {
         'transactions': transactions.map(transactionToJson).toList(),
         'budgets': budgets.map(budgetToJson).toList(),
         'goals': goals.map(goalToJson).toList(),
+        'debts': debts.map(debtToJson).toList(),
+        'subscriptions': subscriptions.map(subscriptionToJson).toList(),
         'families': const <Map<String, dynamic>>[],
         'familyMembers': const <Map<String, dynamic>>[],
       };
@@ -57,6 +67,12 @@ class SyncBundleDto {
             .toList(),
         goals: (json['goals'] as List<dynamic>? ?? const [])
             .map((e) => goalFromJson(e as Map<String, dynamic>))
+            .toList(),
+        debts: (json['debts'] as List<dynamic>? ?? const [])
+            .map((e) => debtFromJson(e as Map<String, dynamic>))
+            .toList(),
+        subscriptions: (json['subscriptions'] as List<dynamic>? ?? const [])
+            .map((e) => subscriptionFromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }
@@ -261,6 +277,60 @@ Goal goalFromJson(Map<String, dynamic> j) => Goal(
       createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
       updatedAt: DateTime.parse(j['updatedAt'] as String).toUtc(),
       isDeleted: j['isDeleted'] as bool? ?? false,
+    );
+
+Map<String, dynamic> debtToJson(Debt d) => {
+      'id': d.id,
+      'familyId': d.familyId,
+      'counterpartyName': d.counterpartyName,
+      'direction': d.direction.code,
+      'amountKopecks': d.amountKopecks,
+      'dueDate': d.dueDate == null ? null : _iso(d.dueDate!),
+      'status': d.status.code,
+      'isDeleted': d.isDeleted,
+      'createdAt': _iso(d.createdAt),
+      'updatedAt': _iso(d.updatedAt),
+    };
+
+Debt debtFromJson(Map<String, dynamic> j) => Debt(
+      id: j['id'] as String,
+      familyId: j['familyId'] as String,
+      counterpartyName: j['counterpartyName'] as String,
+      direction: parseDebtDirection(j['direction'] as String),
+      amountKopecks: (j['amountKopecks'] as num).toInt(),
+      dueDate: j['dueDate'] == null
+          ? null
+          : DateTime.parse(j['dueDate'] as String).toUtc(),
+      status: parseDebtStatus(j['status'] as String),
+      isDeleted: j['isDeleted'] as bool? ?? false,
+      createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
+      updatedAt: DateTime.parse(j['updatedAt'] as String).toUtc(),
+    );
+
+Map<String, dynamic> subscriptionToJson(Subscription s) => {
+      'id': s.id,
+      'familyId': s.familyId,
+      'name': s.name,
+      'amountKopecks': s.amountKopecks,
+      'billingPeriod': s.billingPeriod.code,
+      'nextChargeDate': _iso(s.nextChargeDate),
+      'categoryId': s.categoryId,
+      'isDeleted': s.isDeleted,
+      'createdAt': _iso(s.createdAt),
+      'updatedAt': _iso(s.updatedAt),
+    };
+
+Subscription subscriptionFromJson(Map<String, dynamic> j) => Subscription(
+      id: j['id'] as String,
+      familyId: j['familyId'] as String,
+      name: j['name'] as String,
+      amountKopecks: (j['amountKopecks'] as num).toInt(),
+      billingPeriod: parseSubscriptionPeriod(j['billingPeriod'] as String),
+      nextChargeDate: DateTime.parse(j['nextChargeDate'] as String).toUtc(),
+      categoryId: j['categoryId'] as String?,
+      isDeleted: j['isDeleted'] as bool? ?? false,
+      createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
+      updatedAt: DateTime.parse(j['updatedAt'] as String).toUtc(),
     );
 
 String _iso(DateTime dt) => dt.toUtc().toIso8601String();
