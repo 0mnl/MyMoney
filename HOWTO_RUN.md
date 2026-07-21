@@ -27,7 +27,7 @@
 
 ```powershell
 docker --version
-java -version                 # должно быть 17+
+java -version                 
 flutter --version
 flutter doctor -v             # покажет чего не хватает
 ```
