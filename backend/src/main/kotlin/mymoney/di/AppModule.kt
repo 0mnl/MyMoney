@@ -7,6 +7,7 @@ import mymoney.data.db.DatabaseFactory
 import mymoney.data.repository.AccountRepositoryImpl
 import mymoney.data.repository.BudgetRepositoryImpl
 import mymoney.data.repository.CategoryRepositoryImpl
+import mymoney.data.repository.FamilyInviteRepositoryImpl
 import mymoney.data.repository.FamilyMemberRepositoryImpl
 import mymoney.data.repository.FamilyRepositoryImpl
 import mymoney.data.repository.GoalRepositoryImpl
@@ -19,6 +20,7 @@ import mymoney.data.security.JwtTokenService
 import mymoney.domain.repository.AccountRepository
 import mymoney.domain.repository.BudgetRepository
 import mymoney.domain.repository.CategoryRepository
+import mymoney.domain.repository.FamilyInviteRepository
 import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
 import mymoney.domain.repository.GoalRepository
@@ -45,6 +47,10 @@ import mymoney.domain.usecase.category.GetCategoryUseCase
 import mymoney.domain.usecase.category.ListCategoriesUseCase
 import mymoney.domain.usecase.category.SeedSystemCategoriesUseCase
 import mymoney.domain.usecase.category.UpdateCategoryUseCase
+import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
+import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
+import mymoney.domain.usecase.family.InviteTokenGenerator
+import mymoney.domain.usecase.family.ListFamilyMembersUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
 import mymoney.domain.usecase.transaction.DeleteTransactionUseCase
 import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
@@ -78,6 +84,7 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     // Repositories
     single<FamilyRepository> { FamilyRepositoryImpl(get()) }
     single<FamilyMemberRepository> { FamilyMemberRepositoryImpl(get()) }
+    single<FamilyInviteRepository> { FamilyInviteRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get()) }
     single<RefreshTokenRepository> { RefreshTokenRepositoryImpl(get()) }
     single<AccountRepository> { AccountRepositoryImpl(get()) }
@@ -129,6 +136,12 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single { UpdateBudgetUseCase(get()) }
     single { DeleteBudgetUseCase(get()) }
     single { GetBudgetProgressUseCase(get()) }
+
+    // Family use cases
+    single { InviteTokenGenerator() }
+    single { InviteFamilyMemberUseCase(get(), get(), get(), get()) }
+    single { AcceptFamilyInviteUseCase(get(), get(), get()) }
+    single { ListFamilyMembersUseCase(get()) }
 
     // Goal use cases
     single { CreateGoalUseCase(get()) }

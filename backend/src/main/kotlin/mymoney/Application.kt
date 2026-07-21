@@ -13,6 +13,7 @@ import mymoney.delivery.http.routes.accountRoutes
 import mymoney.delivery.http.routes.authRoutes
 import mymoney.delivery.http.routes.budgetRoutes
 import mymoney.delivery.http.routes.categoryRoutes
+import mymoney.delivery.http.routes.familyRoutes
 import mymoney.delivery.http.routes.goalRoutes
 import mymoney.delivery.http.routes.healthRoutes
 import mymoney.delivery.http.routes.transactionRoutes
@@ -34,6 +35,9 @@ import mymoney.domain.usecase.category.DeleteCategoryUseCase
 import mymoney.domain.usecase.category.GetCategoryUseCase
 import mymoney.domain.usecase.category.ListCategoriesUseCase
 import mymoney.domain.usecase.category.UpdateCategoryUseCase
+import mymoney.domain.usecase.family.AcceptFamilyInviteUseCase
+import mymoney.domain.usecase.family.InviteFamilyMemberUseCase
+import mymoney.domain.usecase.family.ListFamilyMembersUseCase
 import mymoney.domain.usecase.transaction.CreateTransactionUseCase
 import mymoney.domain.usecase.transaction.DeleteTransactionUseCase
 import mymoney.domain.usecase.transaction.GetTransactionHistoryUseCase
@@ -105,6 +109,10 @@ fun Application.module() {
     val deleteBudget by inject<DeleteBudgetUseCase>()
     val getBudgetProgress by inject<GetBudgetProgressUseCase>()
 
+    val inviteFamily by inject<InviteFamilyMemberUseCase>()
+    val acceptFamily by inject<AcceptFamilyInviteUseCase>()
+    val listFamilyMembers by inject<ListFamilyMembersUseCase>()
+
     val createGoal by inject<CreateGoalUseCase>()
     val listGoals by inject<ListGoalsUseCase>()
     val getGoal by inject<GetGoalUseCase>()
@@ -155,6 +163,11 @@ fun Application.module() {
                 update = updateGoal,
                 delete = deleteGoal,
                 contribute = contributeGoal,
+            )
+            familyRoutes(
+                invite = inviteFamily,
+                accept = acceptFamily,
+                listMembers = listFamilyMembers,
             )
         }
     }

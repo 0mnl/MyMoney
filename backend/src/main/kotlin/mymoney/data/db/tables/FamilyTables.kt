@@ -26,3 +26,16 @@ object FamilyMemberTable : Table("family_member") {
     val isDeleted = bool("is_deleted")
     override val primaryKey = PrimaryKey(id)
 }
+
+object FamilyInviteTable : Table("family_invite") {
+    val id = uuid("id")
+    val familyId = uuid("family_id").references(FamilyTable.id)
+    val invitedBy = uuid("invited_by").references(AppUserTable.id)
+    val invitedEmail = text("invited_email")
+    val inviteToken = text("invite_token")
+    val expiresAt = timestamp("expires_at")
+    val acceptedAt = timestamp("accepted_at").nullable()
+    val acceptedBy = uuid("accepted_by").references(AppUserTable.id).nullable()
+    val createdAt = timestamp("created_at")
+    override val primaryKey = PrimaryKey(id)
+}
