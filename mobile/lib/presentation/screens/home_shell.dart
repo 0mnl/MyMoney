@@ -7,12 +7,12 @@ import 'analytics_screen.dart';
 import 'budgets_screen.dart';
 import 'goals_screen.dart';
 import 'home_tab.dart';
+import 'settings_screen.dart';
 import 'transactions_screen.dart';
 
-/// Root scaffold with a bottom navigation between the six primary views
-/// (Home, Accounts, Transactions, Budgets, Goals, Analytics) and a floating
-/// action button that always opens "Add Transaction" — the central UC-03/UC-04
-/// flow (Bible § 8, ≤ 3 steps).
+/// Root scaffold with a bottom navigation. Settings tab hosts backend/sync/family
+/// setup (Etap 4). A floating action button opens the central UC-03/UC-04
+/// "Add Transaction" flow (Bible § 8, ≤ 3 steps).
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -30,6 +30,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     BudgetsScreen(),
     GoalsScreen(),
     AnalyticsScreen(),
+    SettingsScreen(),
   ];
 
   @override
@@ -55,6 +56,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Бюджет'),
           NavigationDestination(icon: Icon(Icons.flag_outlined), selectedIcon: Icon(Icons.flag), label: 'Цели'),
           NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Статистика'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Настройки'),
         ],
       ),
     );
