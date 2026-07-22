@@ -9,10 +9,13 @@
 # === IDE / инструменты ===
 .idea/
 .vscode/
+.vs/
 *.iml
 *.ipr
 *.iws
 .claude/
+CppProperties.json
+CMakeSettings.json
 
 # === Backend (Kotlin/Gradle) ===
 backend/.gradle/
