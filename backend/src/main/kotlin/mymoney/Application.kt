@@ -80,7 +80,7 @@ fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 fun Application.module() {
     val config = loadAppConfig(environment.config)
-    log.info("Starting MyMoney backend, jdbc={}", config.db.url)
+    log.info("Starting MyMoney backend, env={}, jdbc={}", config.env, config.db.url)
 
     val databaseFactory = DatabaseFactory(config.db).apply { init() }
 
