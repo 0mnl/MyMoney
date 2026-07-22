@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/api_providers.dart';
 import '../../core/providers/app_providers.dart';
-import '../../sync/sync_manager.dart';
-import 'family_screen.dart';
+import '../../sync/sync_scheduler.dart';
 import 'login_screen.dart';
 
-/// Экран настроек: подключение к бэкенду, ручной sync, семья, выход.
+/// Экран настроек: подключение к бэкенду, ручной sync, выход.
 /// Минимальный Material — под будущий Figma-макет.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -30,7 +29,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final baseUrlAsync = ref.watch(apiBaseUrlProvider);
     final authAsync = ref.watch(authSnapshotProvider);
-    final syncManagerAsync = ref.watch(syncManagerProvider);
+    final schedulerAsync = ref.watch(syncSchedulerProvider);
+    final statusAsync = ref.watch(syncStatusProvider);
     final prefsAsync = ref.watch(sharedPrefsProvider);
 
     baseUrlAsync.whenData((url) {
@@ -69,6 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ref.invalidate(familyApiProvider);
                       ref.invalidate(syncApiProvider);
                       ref.invalidate(syncManagerProvider);
+                      ref.invalidate(syncSchedulerProvider);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context)
                             .showSnackBar(const SnackBar(content: Text('URL сохранён')));
@@ -124,56 +125,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const Divider(height: 32),
           const Text('Синхронизация', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          syncManagerAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Ошибка: $e'),
-            data: (manager) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(manager.lastSyncedAt == null
-                    ? 'Ещё не синхронизировано'
-                    : 'Последняя синхронизация: ${manager.lastSyncedAt}'),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: authAsync.value == null
-                      ? null
-                      : () => _runSync(context, manager),
-                  child: const Text('Синхронизировать сейчас'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 32),
-          const Text('Семья', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: authAsync.value == null
-                ? null
-                : () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const FamilyScreen()),
-                    ),
-            child: const Text('Управление семьёй'),
+          _SyncPanel(
+            schedulerAsync: schedulerAsync,
+            statusAsync: statusAsync,
+            authAsync: authAsync,
           ),
         ],
       ),
     );
   }
+}
 
-  Future<void> _runSync(BuildContext context, SyncManager manager) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(content: Text('Синхронизация…')));
-    try {
-      final result = await manager.sync();
-      setState(() {}); // refresh lastSyncedAt label
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          'Готово: pushed=${result.pushed}, pulled=${result.pulled}, conflicts=${result.conflicts}',
-        ),
-      ));
-    } catch (e) {
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(content: Text('Ошибка синхронизации: $e')));
-    }
+class _SyncPanel extends StatelessWidget {
+  const _SyncPanel({
+    required this.schedulerAsync,
+    required this.statusAsync,
+    required this.authAsync,
+  });
+
+  final AsyncValue<SyncScheduler> schedulerAsync;
+  final AsyncValue<SyncStatus> statusAsync;
+  final AsyncValue<Object?> authAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return schedulerAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Text('Ошибка: $e'),
+      data: (scheduler) {
+        final status = statusAsync.value ?? scheduler.status;
+        final lastSynced = status.lastSyncedAt;
+        final result = status.lastResult;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              switch (status.phase) {
+                SyncPhase.idle => lastSynced == null
+                    ? 'Ещё не синхронизировано'
+                    : 'Последняя синхронизация: $lastSynced',
+                SyncPhase.syncing => 'Идёт синхронизация…',
+                SyncPhase.offline => 'Нет соединения — работаете офлайн',
+                SyncPhase.error => 'Последняя попытка не удалась: ${status.lastError}',
+              },
+            ),
+            if (result != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Последний цикл: отправлено ${result.pushed}, получено ${result.pulled}, '
+                'конфликтов ${result.conflicts}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: authAsync.value == null
+                  ? null
+                  : () async {
+                      final ok = await scheduler.triggerSync();
+                      if (context.mounted) {
+                        final s = scheduler.status;
+                        final msg = ok
+                            ? (s.lastResult == null
+                                ? 'Синхронизация завершена'
+                                : 'Готово: ${s.lastResult}')
+                            : (s.phase == SyncPhase.offline
+                                ? 'Нет соединения'
+                                : 'Пропущено');
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                      }
+                    },
+              child: const Text('Синхронизировать сейчас'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

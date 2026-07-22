@@ -46,6 +46,12 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.12.0
 
+  # Network status для авто-триггера синхронизации при возврате связи
+  connectivity_plus: ^6.0.5
+
+  # QR-код для приглашения в семью
+  qr_flutter: ^4.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

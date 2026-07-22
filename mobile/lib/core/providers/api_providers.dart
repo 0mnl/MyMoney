@@ -9,6 +9,7 @@ import '../../data/remote/auth_store.dart';
 import '../../data/remote/dio_client.dart';
 import '../../domain/usecase/authenticate_and_sync.dart';
 import '../../sync/sync_manager.dart';
+import '../../sync/sync_scheduler.dart';
 import '../env.dart';
 import 'app_providers.dart';
 
@@ -95,3 +96,26 @@ class AuthSnapshotNotifier extends AsyncNotifier<AuthSnapshot?> {
     state = const AsyncData(null);
   }
 }
+
+/// Long-lived scheduler. Started on app-boot once the session is loaded.
+/// Rebuilt (and previous instance disposed) when the base URL or session
+/// changes, so subsequent syncs always go to the right backend.
+final syncSchedulerProvider = FutureProvider<SyncScheduler>((ref) async {
+  final manager = await ref.watch(syncManagerProvider.future);
+  final interval = Duration(seconds: Env.syncIntervalSeconds);
+  final scheduler = SyncScheduler(
+    manager: manager,
+    interval: interval,
+    logger: Logger(),
+  );
+  ref.onDispose(() => scheduler.dispose());
+  return scheduler;
+});
+
+/// Rebroadcasts SyncScheduler.statusStream as a Riverpod stream so widgets
+/// can `.watch(syncStatusProvider)` and rebuild on phase changes.
+final syncStatusProvider = StreamProvider<SyncStatus>((ref) async* {
+  final scheduler = await ref.watch(syncSchedulerProvider.future);
+  yield scheduler.status;
+  yield* scheduler.statusStream;
+});
