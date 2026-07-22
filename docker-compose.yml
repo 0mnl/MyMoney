@@ -1,3 +1,7 @@
+# Universal compose file. По умолчанию поднимает только Postgres — этого
+# достаточно для локальной разработки (bacend запускается из IDE/gradle).
+# Для полноценной прод-подобной сборки (backend в контейнере):
+#     docker compose --profile prod up -d
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,6 +20,38 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mymoney-backend:local
+    container_name: mymoney-backend
+    profiles: ["prod"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mymoney}
+      DB_USER: ${POSTGRES_USER:-mymoney}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-mymoney_dev_password}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required for prod profile}
+      JWT_ISSUER: ${JWT_ISSUER:-mymoney}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-mymoney-mobile}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   postgres-data:
