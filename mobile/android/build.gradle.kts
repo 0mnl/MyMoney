@@ -15,6 +15,20 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+// isar_flutter_libs 3.1.0+1 не выставляет compileSdk, из-за чего AAPT валится с
+// «resource android:attr/lStar not found» (атрибут появился в API 31).
+// Прокидываем актуальный compileSdk во все Android-подпроекты. Регистрируем
+// afterEvaluate ДО evaluationDependsOn(":app"), иначе подпроекты уже оценены.
+subprojects {
+    afterEvaluate {
+        extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.apply {
+            if (compileSdk == null || compileSdk!! < 34) {
+                compileSdk = 34
+            }
+        }
+    }
+}
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
