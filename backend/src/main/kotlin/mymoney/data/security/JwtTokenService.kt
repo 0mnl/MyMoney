@@ -34,6 +34,7 @@ class JwtTokenService(
         val token = JWT.create()
             .withIssuer(config.issuer)
             .withAudience(config.audience)
+            .withJWTId(UUID.randomUUID().toString())
             .withSubject(userId.toString())
             .withClaim("family_id", familyId.toString())
             .withIssuedAt(Date.from(now.toJavaInstant()))

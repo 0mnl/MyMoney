@@ -1,6 +1,7 @@
 package mymoney
 
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.netty.EngineMain
@@ -83,6 +84,7 @@ fun Application.module() {
     log.info("Starting MyMoney backend, env={}, jdbc={}", config.env, config.db.url)
 
     val databaseFactory = DatabaseFactory(config.db).apply { init() }
+    monitor.subscribe(ApplicationStopped) { databaseFactory.close() }
 
     install(Koin) {
         slf4jLogger()
