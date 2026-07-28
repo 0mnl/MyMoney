@@ -16,6 +16,7 @@ data class SyncBundle(
     val budgets: List<Budget> = emptyList(),
     val goals: List<Goal> = emptyList(),
     val debts: List<Debt> = emptyList(),
+    val debtPayments: List<DebtPayment> = emptyList(),
     val subscriptions: List<Subscription> = emptyList(),
     val families: List<Family> = emptyList(),
     val familyMembers: List<FamilyMember> = emptyList(),

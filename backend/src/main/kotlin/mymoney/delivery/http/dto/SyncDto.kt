@@ -9,6 +9,7 @@ import mymoney.domain.model.Category
 import mymoney.domain.model.CategoryType
 import mymoney.domain.model.Debt
 import mymoney.domain.model.DebtDirection
+import mymoney.domain.model.DebtPayment
 import mymoney.domain.model.DebtStatus
 import mymoney.domain.model.Family
 import mymoney.domain.model.FamilyMember
@@ -37,6 +38,7 @@ data class SyncAccountDto(
     val type: String,
     val currency: String,
     val initialBalanceKopecks: Long,
+    val creditLimitKopecks: Long? = null,
     val isArchived: Boolean,
     val isDeleted: Boolean,
     val createdAt: Instant,
@@ -131,8 +133,23 @@ data class SyncDebtDto(
     val counterpartyName: String,
     val direction: String,
     val amountKopecks: Long,
+    val interestRate: Double = 0.0,
     val dueDate: Instant? = null,
     val status: String,
+    val isDeleted: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+@Serializable
+data class SyncDebtPaymentDto(
+    val id: String,
+    val debtId: String,
+    val dueDate: Instant,
+    val plannedAmountKopecks: Long,
+    val isPaid: Boolean,
+    val paidAt: Instant? = null,
+    val transactionId: String? = null,
     val isDeleted: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -160,6 +177,7 @@ data class SyncBundleDto(
     val budgets: List<SyncBudgetDto> = emptyList(),
     val goals: List<SyncGoalDto> = emptyList(),
     val debts: List<SyncDebtDto> = emptyList(),
+    val debtPayments: List<SyncDebtPaymentDto> = emptyList(),
     val subscriptions: List<SyncSubscriptionDto> = emptyList(),
     val families: List<SyncFamilyDto> = emptyList(),
     val familyMembers: List<SyncFamilyMemberDto> = emptyList(),
@@ -202,6 +220,7 @@ fun Account.toSyncDto() = SyncAccountDto(
     type = type,
     currency = currency,
     initialBalanceKopecks = initialBalanceKopecks,
+    creditLimitKopecks = creditLimitKopecks,
     isArchived = isArchived,
     isDeleted = isDeleted,
     createdAt = createdAt,
@@ -260,8 +279,22 @@ fun Debt.toSyncDto() = SyncDebtDto(
     counterpartyName = counterpartyName,
     direction = direction.name,
     amountKopecks = amountKopecks,
+    interestRate = interestRate,
     dueDate = dueDate,
     status = status.name,
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun DebtPayment.toSyncDto() = SyncDebtPaymentDto(
+    id = id.toString(),
+    debtId = debtId.toString(),
+    dueDate = dueDate,
+    plannedAmountKopecks = plannedAmountKopecks,
+    isPaid = isPaid,
+    paidAt = paidAt,
+    transactionId = transactionId?.toString(),
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,
@@ -316,6 +349,7 @@ fun SyncBundle.toDto() = SyncBundleDto(
     budgets = budgets.map { it.toSyncDto() },
     goals = goals.map { it.toSyncDto() },
     debts = debts.map { it.toSyncDto() },
+    debtPayments = debtPayments.map { it.toSyncDto() },
     subscriptions = subscriptions.map { it.toSyncDto() },
     families = families.map { it.toSyncDto() },
     familyMembers = familyMembers.map { it.toSyncDto() },
@@ -343,6 +377,7 @@ fun SyncAccountDto.toDomain() = Account(
     type = type,
     currency = currency,
     initialBalanceKopecks = initialBalanceKopecks,
+    creditLimitKopecks = creditLimitKopecks,
     isArchived = isArchived,
     isDeleted = isDeleted,
     createdAt = createdAt,
@@ -430,8 +465,22 @@ fun SyncDebtDto.toDomain() = Debt(
     counterpartyName = counterpartyName,
     direction = DebtDirection.valueOf(direction),
     amountKopecks = amountKopecks,
+    interestRate = interestRate,
     dueDate = dueDate,
     status = DebtStatus.valueOf(status),
+    isDeleted = isDeleted,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun SyncDebtPaymentDto.toDomain() = DebtPayment(
+    id = UUID.fromString(id),
+    debtId = UUID.fromString(debtId),
+    dueDate = dueDate,
+    plannedAmountKopecks = plannedAmountKopecks,
+    isPaid = isPaid,
+    paidAt = paidAt,
+    transactionId = transactionId?.let { UUID.fromString(it) },
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,
@@ -457,6 +506,7 @@ fun SyncBundleDto.toDomain() = SyncBundle(
     budgets = budgets.map { it.toDomain() },
     goals = goals.map { it.toDomain() },
     debts = debts.map { it.toDomain() },
+    debtPayments = debtPayments.map { it.toDomain() },
     subscriptions = subscriptions.map { it.toDomain() },
     families = families.map { it.toDomain() },
     familyMembers = familyMembers.map { it.toDomain() },

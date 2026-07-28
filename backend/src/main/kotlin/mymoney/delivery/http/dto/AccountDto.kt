@@ -12,6 +12,7 @@ data class AccountDto(
     val type: String,
     val currency: String,
     val initialBalance: Long,      // kopecks
+    val creditLimit: Long? = null, // kopecks, null для не-кредитных счетов (Bible v2 §7.2)
     val isArchived: Boolean,
     val isDeleted: Boolean,
     val createdAt: Instant,
@@ -25,6 +26,7 @@ data class CreateAccountRequest(
     val type: String,
     val currency: String = "RUB",
     val initialBalance: Long = 0L,
+    val creditLimit: Long? = null,
 )
 
 @Serializable
@@ -33,6 +35,7 @@ data class UpdateAccountRequest(
     val type: String,
     val currency: String,
     val initialBalance: Long,
+    val creditLimit: Long? = null,
 )
 
 @Serializable
@@ -47,6 +50,7 @@ fun Account.toDto() = AccountDto(
     type = type,
     currency = currency,
     initialBalance = initialBalanceKopecks,
+    creditLimit = creditLimitKopecks,
     isArchived = isArchived,
     isDeleted = isDeleted,
     createdAt = createdAt,

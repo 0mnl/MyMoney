@@ -47,6 +47,7 @@ fun Route.accountRoutes(
                     type = body.type,
                     currency = body.currency,
                     initialBalanceKopecks = body.initialBalance,
+                    creditLimitKopecks = body.creditLimit,
                 )
                 call.respond(HttpStatusCode.Created, account.toDto())
             }
@@ -76,6 +77,7 @@ fun Route.accountRoutes(
                     type = body.type,
                     currency = body.currency,
                     initialBalanceKopecks = body.initialBalance,
+                    creditLimitKopecks = body.creditLimit,
                 )
                 call.respond(updated.toDto())
             }

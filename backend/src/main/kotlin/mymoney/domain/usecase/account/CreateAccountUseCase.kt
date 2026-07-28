@@ -24,6 +24,7 @@ class CreateAccountUseCase(
         type: String,
         currency: String = "RUB",
         initialBalanceKopecks: Long = 0,
+        creditLimitKopecks: Long? = null,
     ): Account {
         if (name.isBlank()) throw ValidationException("name must not be blank", mapOf("field" to "name"))
         if (type.isBlank()) throw ValidationException("type must not be blank", mapOf("field" to "type"))
@@ -31,6 +32,12 @@ class CreateAccountUseCase(
             throw ValidationException(
                 "MVP supports RUB only",
                 mapOf("field" to "currency", "supported" to "RUB"),
+            )
+        }
+        if (creditLimitKopecks != null && creditLimitKopecks < 0) {
+            throw ValidationException(
+                "creditLimit must be non-negative",
+                mapOf("field" to "creditLimit"),
             )
         }
 
@@ -46,6 +53,7 @@ class CreateAccountUseCase(
             type = type.trim(),
             currency = currency,
             initialBalanceKopecks = initialBalanceKopecks,
+            creditLimitKopecks = creditLimitKopecks,
             createdAt = now,
             updatedAt = now,
         )

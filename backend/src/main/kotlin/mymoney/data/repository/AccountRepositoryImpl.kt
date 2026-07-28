@@ -26,6 +26,7 @@ class AccountRepositoryImpl(private val db: Database) : AccountRepository {
             it[type] = account.type
             it[currency] = account.currency
             it[initialBalance] = account.initialBalanceKopecks
+            it[creditLimit] = account.creditLimitKopecks
             it[isArchived] = account.isArchived
             it[isDeleted] = account.isDeleted
             it[createdAt] = account.createdAt
@@ -55,6 +56,7 @@ class AccountRepositoryImpl(private val db: Database) : AccountRepository {
             it[type] = account.type
             it[currency] = account.currency
             it[initialBalance] = account.initialBalanceKopecks
+            it[creditLimit] = account.creditLimitKopecks
             it[isArchived] = account.isArchived
             it[isDeleted] = account.isDeleted
             it[updatedAt] = account.updatedAt
@@ -79,6 +81,7 @@ class AccountRepositoryImpl(private val db: Database) : AccountRepository {
         type = this[AccountTable.type],
         currency = this[AccountTable.currency],
         initialBalanceKopecks = this[AccountTable.initialBalance],
+        creditLimitKopecks = this[AccountTable.creditLimit],
         isArchived = this[AccountTable.isArchived],
         isDeleted = this[AccountTable.isDeleted],
         createdAt = this[AccountTable.createdAt],

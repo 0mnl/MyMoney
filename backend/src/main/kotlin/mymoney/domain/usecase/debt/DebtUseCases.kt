@@ -20,10 +20,14 @@ class CreateDebtUseCase(private val repo: DebtRepository, private val clock: Clo
         counterpartyName: String,
         direction: DebtDirection,
         amountKopecks: Long,
+        interestRate: Double = 0.0,
         dueDate: Instant?,
     ): Debt {
         if (counterpartyName.isBlank()) throw ValidationException("counterpartyName is required")
         if (amountKopecks <= 0) throw ValidationException("amountKopecks must be > 0")
+        if (interestRate < 0.0 || interestRate > 999.99) {
+            throw ValidationException("interestRate out of range (0..999.99)")
+        }
         repo.findById(id)?.let { throw ConflictException("DEBT_ID_TAKEN", "Debt id already exists") }
         val now = clock.now()
         return repo.create(
@@ -33,6 +37,7 @@ class CreateDebtUseCase(private val repo: DebtRepository, private val clock: Clo
                 counterpartyName = counterpartyName.trim(),
                 direction = direction,
                 amountKopecks = amountKopecks,
+                interestRate = interestRate,
                 dueDate = dueDate,
                 status = DebtStatus.OPEN,
                 createdAt = now,
@@ -61,6 +66,7 @@ class UpdateDebtUseCase(private val repo: DebtRepository, private val clock: Clo
         id: UUID,
         counterpartyName: String,
         amountKopecks: Long,
+        interestRate: Double = 0.0,
         dueDate: Instant?,
         status: DebtStatus,
     ): Debt {
@@ -68,10 +74,14 @@ class UpdateDebtUseCase(private val repo: DebtRepository, private val clock: Clo
         if (existing.familyId != ctx.familyId) throw ForbiddenException("Debt belongs to another family")
         if (counterpartyName.isBlank()) throw ValidationException("counterpartyName is required")
         if (amountKopecks <= 0) throw ValidationException("amountKopecks must be > 0")
+        if (interestRate < 0.0 || interestRate > 999.99) {
+            throw ValidationException("interestRate out of range (0..999.99)")
+        }
         return repo.update(
             existing.copy(
                 counterpartyName = counterpartyName.trim(),
                 amountKopecks = amountKopecks,
+                interestRate = interestRate,
                 dueDate = dueDate,
                 status = status,
                 updatedAt = clock.now(),

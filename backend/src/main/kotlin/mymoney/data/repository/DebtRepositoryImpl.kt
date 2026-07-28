@@ -27,6 +27,7 @@ class DebtRepositoryImpl(private val db: Database) : DebtRepository {
             it[counterpartyName] = debt.counterpartyName
             it[direction] = debt.direction.name
             it[amount] = debt.amountKopecks
+            it[interestRate] = debt.interestRate
             it[dueDate] = debt.dueDate
             it[status] = debt.status.name
             it[isDeleted] = debt.isDeleted
@@ -52,6 +53,7 @@ class DebtRepositoryImpl(private val db: Database) : DebtRepository {
             it[counterpartyName] = debt.counterpartyName
             it[direction] = debt.direction.name
             it[amount] = debt.amountKopecks
+            it[interestRate] = debt.interestRate
             it[dueDate] = debt.dueDate
             it[status] = debt.status.name
             it[isDeleted] = debt.isDeleted
@@ -76,6 +78,7 @@ class DebtRepositoryImpl(private val db: Database) : DebtRepository {
         counterpartyName = this[DebtTable.counterpartyName],
         direction = DebtDirection.valueOf(this[DebtTable.direction]),
         amountKopecks = this[DebtTable.amount],
+        interestRate = this[DebtTable.interestRate],
         dueDate = this[DebtTable.dueDate],
         status = DebtStatus.valueOf(this[DebtTable.status]),
         isDeleted = this[DebtTable.isDeleted],

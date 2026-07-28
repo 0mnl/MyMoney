@@ -43,6 +43,7 @@ fun Route.debtRoutes(
                     counterpartyName = body.counterpartyName,
                     direction = parseDirection(body.direction),
                     amountKopecks = body.amount,
+                    interestRate = body.interestRate,
                     dueDate = body.dueDate,
                 )
                 call.respond(HttpStatusCode.Created, created.toDto())
@@ -69,6 +70,7 @@ fun Route.debtRoutes(
                     id = id,
                     counterpartyName = body.counterpartyName,
                     amountKopecks = body.amount,
+                    interestRate = body.interestRate,
                     dueDate = body.dueDate,
                     status = parseStatus(body.status),
                 )

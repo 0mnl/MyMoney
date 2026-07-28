@@ -10,6 +10,7 @@ object AccountTable : Table("account") {
     val type = text("type")
     val currency = text("currency")
     val initialBalance = long("initial_balance")            // kopecks
+    val creditLimit = long("credit_limit").nullable()       // kopecks, NULL для не-кредитных (Bible v2 §7.2)
     val isArchived = bool("is_archived")
     val isDeleted = bool("is_deleted")
     val createdAt = timestamp("created_at")

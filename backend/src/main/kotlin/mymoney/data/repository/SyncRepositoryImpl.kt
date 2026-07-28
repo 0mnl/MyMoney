@@ -6,6 +6,7 @@ import mymoney.data.db.dbQuery
 import mymoney.data.db.tables.AccountTable
 import mymoney.data.db.tables.BudgetTable
 import mymoney.data.db.tables.CategoryTable
+import mymoney.data.db.tables.DebtPaymentTable
 import mymoney.data.db.tables.DebtTable
 import mymoney.data.db.tables.FamilyMemberTable
 import mymoney.data.db.tables.FamilyTable
@@ -21,6 +22,7 @@ import mymoney.domain.model.Category
 import mymoney.domain.model.CategoryType
 import mymoney.domain.model.Debt
 import mymoney.domain.model.DebtDirection
+import mymoney.domain.model.DebtPayment
 import mymoney.domain.model.DebtStatus
 import mymoney.domain.model.Family
 import mymoney.domain.model.FamilyMember
@@ -105,6 +107,21 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
                     }
                 }
                 .map { it.toDebt() },
+            debtPayments = run {
+                val familyDebtIds = DebtTable
+                    .selectAll()
+                    .where { DebtTable.familyId eq familyId }
+                    .map { it[DebtTable.id] }
+                if (familyDebtIds.isEmpty()) emptyList()
+                else DebtPaymentTable
+                    .selectAll()
+                    .where {
+                        (DebtPaymentTable.debtId inList familyDebtIds).let {
+                            if (since != null) it and (DebtPaymentTable.updatedAt greater since) else it
+                        }
+                    }
+                    .map { it.toDebtPayment() }
+            },
             subscriptions = SubscriptionTable
                 .selectAll()
                 .where {
@@ -135,6 +152,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
         for (b in bundle.budgets) upsertBudget(familyId, b, accepted, conflicts)
         for (g in bundle.goals) upsertGoal(familyId, g, accepted, conflicts)
         for (d in bundle.debts) upsertDebt(familyId, d, accepted, conflicts)
+        for (dp in bundle.debtPayments) upsertDebtPayment(familyId, dp, accepted, conflicts)
         for (s in bundle.subscriptions) upsertSubscription(familyId, s, accepted, conflicts)
 
         SyncRepository.PushResult(accepted, conflicts)
@@ -156,6 +174,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
                 it[type] = row.type
                 it[currency] = row.currency
                 it[initialBalance] = row.initialBalanceKopecks
+                it[creditLimit] = row.creditLimitKopecks
                 it[isArchived] = row.isArchived
                 it[isDeleted] = row.isDeleted
                 it[createdAt] = row.createdAt
@@ -178,6 +197,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
             it[type] = row.type
             it[currency] = row.currency
             it[initialBalance] = row.initialBalanceKopecks
+            it[creditLimit] = row.creditLimitKopecks
             it[isArchived] = row.isArchived
             it[isDeleted] = row.isDeleted
             it[updatedAt] = row.updatedAt
@@ -391,6 +411,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
                 it[counterpartyName] = row.counterpartyName
                 it[direction] = row.direction.name
                 it[amount] = row.amountKopecks
+                it[interestRate] = row.interestRate
                 it[dueDate] = row.dueDate
                 it[status] = row.status.name
                 it[isDeleted] = row.isDeleted
@@ -413,12 +434,67 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
             it[counterpartyName] = row.counterpartyName
             it[direction] = row.direction.name
             it[amount] = row.amountKopecks
+            it[interestRate] = row.interestRate
             it[dueDate] = row.dueDate
             it[status] = row.status.name
             it[isDeleted] = row.isDeleted
             it[updatedAt] = row.updatedAt
         }
         accepted += AcceptedRef(TABLE_DEBT, row.id.toString())
+    }
+
+    private fun upsertDebtPayment(
+        familyScope: UUID,
+        row: DebtPayment,
+        accepted: MutableList<AcceptedRef>,
+        conflicts: MutableList<SyncConflict>,
+    ) {
+        // Family authorization inferred from parent debt.
+        val parent = DebtTable
+            .selectAll()
+            .where { DebtTable.id eq row.debtId }
+            .singleOrNull()
+            ?: throw ForbiddenException("DebtPayment references unknown debt")
+        if (parent[DebtTable.familyId] != familyScope) {
+            throw ForbiddenException("DebtPayment belongs to a different family")
+        }
+
+        val existing = DebtPaymentTable.selectAll().where { DebtPaymentTable.id eq row.id }.singleOrNull()
+        if (existing == null) {
+            DebtPaymentTable.insert {
+                it[id] = row.id
+                it[debtId] = row.debtId
+                it[dueDate] = row.dueDate
+                it[plannedAmount] = row.plannedAmountKopecks
+                it[isPaid] = row.isPaid
+                it[paidAt] = row.paidAt
+                it[transactionId] = row.transactionId
+                it[isDeleted] = row.isDeleted
+                it[createdAt] = row.createdAt
+                it[updatedAt] = row.updatedAt
+            }
+            accepted += AcceptedRef(TABLE_DEBT_PAYMENT, row.id.toString())
+            return
+        }
+        val serverUpdated = existing[DebtPaymentTable.updatedAt]
+        if (serverUpdated > row.updatedAt) {
+            conflicts += SyncConflict(
+                table = TABLE_DEBT_PAYMENT,
+                id = row.id.toString(),
+                serverBundle = SyncBundle(debtPayments = listOf(existing.toDebtPayment())),
+            )
+            return
+        }
+        DebtPaymentTable.update({ DebtPaymentTable.id eq row.id }) {
+            it[dueDate] = row.dueDate
+            it[plannedAmount] = row.plannedAmountKopecks
+            it[isPaid] = row.isPaid
+            it[paidAt] = row.paidAt
+            it[transactionId] = row.transactionId
+            it[isDeleted] = row.isDeleted
+            it[updatedAt] = row.updatedAt
+        }
+        accepted += AcceptedRef(TABLE_DEBT_PAYMENT, row.id.toString())
     }
 
     private fun upsertSubscription(
@@ -492,6 +568,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
         type = this[AccountTable.type],
         currency = this[AccountTable.currency],
         initialBalanceKopecks = this[AccountTable.initialBalance],
+        creditLimitKopecks = this[AccountTable.creditLimit],
         isArchived = this[AccountTable.isArchived],
         isDeleted = this[AccountTable.isDeleted],
         createdAt = this[AccountTable.createdAt],
@@ -562,11 +639,25 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
         counterpartyName = this[DebtTable.counterpartyName],
         direction = DebtDirection.valueOf(this[DebtTable.direction]),
         amountKopecks = this[DebtTable.amount],
+        interestRate = this[DebtTable.interestRate],
         dueDate = this[DebtTable.dueDate],
         status = DebtStatus.valueOf(this[DebtTable.status]),
         isDeleted = this[DebtTable.isDeleted],
         createdAt = this[DebtTable.createdAt],
         updatedAt = this[DebtTable.updatedAt],
+    )
+
+    private fun ResultRow.toDebtPayment() = DebtPayment(
+        id = this[DebtPaymentTable.id],
+        debtId = this[DebtPaymentTable.debtId],
+        dueDate = this[DebtPaymentTable.dueDate],
+        plannedAmountKopecks = this[DebtPaymentTable.plannedAmount],
+        isPaid = this[DebtPaymentTable.isPaid],
+        paidAt = this[DebtPaymentTable.paidAt],
+        transactionId = this[DebtPaymentTable.transactionId],
+        isDeleted = this[DebtPaymentTable.isDeleted],
+        createdAt = this[DebtPaymentTable.createdAt],
+        updatedAt = this[DebtPaymentTable.updatedAt],
     )
 
     private fun ResultRow.toSubscription() = Subscription(
@@ -589,6 +680,7 @@ class SyncRepositoryImpl(private val db: Database) : SyncRepository {
         const val TABLE_BUDGET = "budget"
         const val TABLE_GOAL = "goal"
         const val TABLE_DEBT = "debt"
+        const val TABLE_DEBT_PAYMENT = "debt_payment"
         const val TABLE_SUBSCRIPTION = "subscription"
     }
 }

@@ -18,6 +18,7 @@ class UpdateAccountUseCase(
         type: String,
         currency: String,
         initialBalanceKopecks: Long,
+        creditLimitKopecks: Long? = null,
     ): Account {
         if (name.isBlank()) throw ValidationException("name must not be blank", mapOf("field" to "name"))
         if (type.isBlank()) throw ValidationException("type must not be blank", mapOf("field" to "type"))
@@ -27,6 +28,12 @@ class UpdateAccountUseCase(
                 mapOf("field" to "currency", "supported" to "RUB"),
             )
         }
+        if (creditLimitKopecks != null && creditLimitKopecks < 0) {
+            throw ValidationException(
+                "creditLimit must be non-negative",
+                mapOf("field" to "creditLimit"),
+            )
+        }
 
         val existing = accounts.getOwned(ctx, id)
         val updated = existing.copy(
@@ -34,6 +41,7 @@ class UpdateAccountUseCase(
             type = type.trim(),
             currency = currency,
             initialBalanceKopecks = initialBalanceKopecks,
+            creditLimitKopecks = creditLimitKopecks,
             updatedAt = clock.now(),
         )
         return accounts.update(updated)
