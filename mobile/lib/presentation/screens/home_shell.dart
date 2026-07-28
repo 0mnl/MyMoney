@@ -15,6 +15,11 @@ import 'settings_screen.dart';
 import 'subscriptions_screen.dart';
 import 'transactions_screen.dart';
 
+/// Индекс выбранной вкладки. Вынесен в провайдер, чтобы отдельные экраны
+/// (например, «Все» / карточки счетов на главной, пункты меню в настройках)
+/// могли переключать таб без пробрасывания колбэков.
+final homeShellTabProvider = StateProvider<int>((_) => 0);
+
 /// Root scaffold with a bottom navigation. Settings tab hosts backend/sync/family
 /// setup (Etap 4). A floating action button opens the central UC-03/UC-04
 /// "Add Transaction" flow (Bible § 8, ≤ 3 steps).
@@ -26,8 +31,6 @@ class HomeShell extends ConsumerStatefulWidget {
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
-
   static const _tabs = <Widget>[
     HomeTab(),
     AccountsScreen(),
@@ -50,11 +53,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
     ref.watch(syncSchedulerProvider);
 
+    final index = ref.watch(homeShellTabProvider);
+
     return Scaffold(
       body: Column(
         children: [
           const _SyncStatusBar(),
-          Expanded(child: IndexedStack(index: _index, children: _tabs)),
+          Expanded(child: IndexedStack(index: index, children: _tabs)),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -67,8 +72,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         label: const Text('Операция'),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: index,
+        onDestinationSelected: (i) =>
+            ref.read(homeShellTabProvider.notifier).state = i,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Главная'),
           NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Счета'),

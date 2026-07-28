@@ -9,6 +9,12 @@ import '../../domain/model/enums.dart';
 import '../../domain/model/money.dart';
 import '../../domain/model/transaction.dart';
 import '../widgets/category_icon.dart';
+import 'home_shell.dart';
+
+// Tab indices inside HomeShell — keep in sync with _HomeShellState._tabs.
+const int _tabAccounts = 1;
+const int _tabTransactions = 2;
+const int _tabAnalytics = 7;
 
 const _bgBeige = Color(0xFFF4EDE3);
 const _labelsPrimary = Colors.black;
@@ -97,16 +103,28 @@ class HomeTab extends ConsumerWidget {
                         child: _PeriodSegmentedControl(),
                       ),
                       const SizedBox(height: 16),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: _CategoryDonutSection(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _CategoryDonutSection(
+                          onTap: () => _switchTab(ref, _tabAnalytics),
+                        ),
                       ),
                       const SizedBox(height: 28),
-                      _SectionHeader(title: 'Счета', onAll: () {}),
+                      _SectionHeader(
+                        title: 'Счета',
+                        onAll: () => _switchTab(ref, _tabAccounts),
+                      ),
                       const SizedBox(height: 12),
-                      _AccountsRow(accounts: visibleAccounts, balances: balances),
+                      _AccountsRow(
+                        accounts: visibleAccounts,
+                        balances: balances,
+                        onCardTap: (_) => _switchTab(ref, _tabAccounts),
+                      ),
                       const SizedBox(height: 24),
-                      _SectionHeader(title: 'Последние операции', onAll: () {}),
+                      _SectionHeader(
+                        title: 'Последние операции',
+                        onAll: () => _switchTab(ref, _tabTransactions),
+                      ),
                       const SizedBox(height: 8),
                       if (recent.isEmpty)
                         const Padding(
@@ -127,6 +145,7 @@ class HomeTab extends ConsumerWidget {
                                   category:
                                       t.categoryId != null ? catById[t.categoryId!] : null,
                                   account: _findAccount(accounts, t.accountId),
+                                  onTap: () => _switchTab(ref, _tabTransactions),
                                 ),
                             ],
                           ),
@@ -147,6 +166,10 @@ class HomeTab extends ConsumerWidget {
       if (a.id == id) return a;
     }
     return null;
+  }
+
+  static void _switchTab(WidgetRef ref, int index) {
+    ref.read(homeShellTabProvider.notifier).state = index;
   }
 }
 
@@ -318,7 +341,8 @@ class _PeriodSegmentedControlState extends State<_PeriodSegmentedControl> {
 }
 
 class _CategoryDonutSection extends StatelessWidget {
-  const _CategoryDonutSection();
+  const _CategoryDonutSection({required this.onTap});
+  final VoidCallback onTap;
 
   // Placeholder distribution — real per-period aggregation lives in
   // analytics_providers; will be wired up in a follow-up task.
@@ -333,7 +357,10 @@ class _CategoryDonutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
@@ -363,7 +390,7 @@ class _CategoryDonutSection extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '48 500 Р',
+                    '48 500 ',
                     style: TextStyle(
                       color: _labelsPrimary,
                       fontSize: 22,
@@ -392,6 +419,7 @@ class _CategoryDonutSection extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }
@@ -449,9 +477,14 @@ class _CategoryLegendRow extends StatelessWidget {
 }
 
 class _AccountsRow extends StatelessWidget {
-  const _AccountsRow({required this.accounts, required this.balances});
+  const _AccountsRow({
+    required this.accounts,
+    required this.balances,
+    required this.onCardTap,
+  });
   final List<Account> accounts;
   final Map<String, int> balances;
+  final ValueChanged<Account> onCardTap;
 
   @override
   Widget build(BuildContext context) {
@@ -477,6 +510,7 @@ class _AccountsRow extends StatelessWidget {
             icon: _iconForAccountType(a.type),
             label: a.name,
             amount: Money.formatRub(balances[a.id] ?? 0),
+            onTap: () => onCardTap(a),
           );
         },
       ),
@@ -497,30 +531,36 @@ class _AccountCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.amount,
+    required this.onTap,
   });
   final IconData icon;
   final String label;
   final String amount;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 161,
-      height: 94,
-      clipBehavior: Clip.antiAlias,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x3F000000),
-            blurRadius: 25,
-            offset: Offset(0, 3),
+        child: Ink(
+          width: 161,
+          height: 94,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3F000000),
+                blurRadius: 25,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -553,6 +593,8 @@ class _AccountCard extends StatelessWidget {
           ),
         ],
       ),
+      ),
+      ),
     );
   }
 }
@@ -562,11 +604,13 @@ class _TransactionRow extends StatelessWidget {
     required this.transaction,
     required this.category,
     required this.account,
+    required this.onTap,
   });
 
   final Transaction transaction;
   final Category? category;
   final Account? account;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -582,7 +626,11 @@ class _TransactionRow extends StatelessWidget {
         category?.name ?? (isIncome ? 'Доход' : (isTransfer ? 'Перевод' : 'Расход'));
     final String subtitle = _subtitle();
 
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0x1F000000), width: 1)),
@@ -640,6 +688,8 @@ class _TransactionRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    ),
       ),
     );
   }
