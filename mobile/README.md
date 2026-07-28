@@ -2,7 +2,7 @@
 
 Flutter + Riverpod + Isar + Dio. Offline First. Clean Architecture.
 
-Полный контекст — `docs/MyMoney_Project_Bible.md` § 25. Технические решения — `docs/adr/`.
+Полный контекст — `docs/MyMoney_Project_Bible_v2.md` §§11–13. Технические решения — `docs/adr/`.
 
 ## Требования
 
@@ -32,7 +32,7 @@ flutter run
 
 **Важно:** на этом этапе `build_runner build` не должен падать, но и полезных
 файлов не сгенерирует — в `data/local/entities/` ещё нет Isar-коллекций
-(они появятся в Этапе 1 дорожной карты, § 15 Bible).
+(они появятся в Этапе 1 дорожной карты, §17 Bible v2).
 
 ## Установка API-адреса
 
@@ -65,14 +65,14 @@ lib/
 │   ├── navigation/     — go_router
 │   └── theme/          — Material 3 тема
 ├── core/               — env, глобальные Riverpod-провайдеры, error handling
-├── sync/               — фоновая синхронизация (см. § 25.6 Bible)
+├── sync/               — фоновая синхронизация (см. §14 Bible v2)
 └── main.dart
 ```
 
 Правила:
 - Presentation никогда не обращается к Isar / Dio напрямую — только через репозиторий.
 - Repository возвращает **domain-модели**, не Isar-entity и не API DTO.
-- Один use case = один класс = одно действие (см. § 20 Bible).
+- Один use case = один класс = одно действие (см. §10 Bible v2).
 
 ## Полезные команды
 

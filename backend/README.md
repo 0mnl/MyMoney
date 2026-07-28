@@ -2,7 +2,7 @@
 
 Kotlin + Ktor 3 + PostgreSQL 16 + Exposed + Koin + JWT, Clean Architecture.
 
-Полный контекст — `docs/MyMoney_Project_Bible.md` § 25. Технические решения — `docs/adr/`.
+Полный контекст — `docs/MyMoney_Project_Bible_v2.md` §§11–13. Технические решения — `docs/adr/`.
 
 ## Требования
 
@@ -64,7 +64,7 @@ src/main/kotlin/mymoney/
 - Domain не знает про Exposed / Ktor.
 - Data не знает про Ktor.
 - Delivery не знает про SQL.
-- Все use case — один класс = одно действие (см. § 20 Bible).
+- Все use case — один класс = одно действие (см. §10 Bible v2).
 
 ## Миграции
 

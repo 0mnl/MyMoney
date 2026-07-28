@@ -1,5 +1,6 @@
 -- MyMoney initial schema (v1)
--- Source of truth: docs/MyMoney_Project_Bible.md § 25.4
+-- Source of truth: docs/MyMoney_Project_Bible_v2.md §13 (credit_limit, interest_rate, debt_payment
+-- добавляются последующей миграцией V2)
 -- Money: BIGINT in kopecks (see ADR-0002)
 -- Sync: last-write-wins by updated_at (see ADR-0004); soft delete via is_deleted
 -- All entities are scoped by family_id (family = base data container, see § 10.3)
