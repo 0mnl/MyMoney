@@ -20,6 +20,7 @@ class SyncBundleDto {
     this.budgets = const [],
     this.goals = const [],
     this.debts = const [],
+    this.debtPayments = const [],
     this.subscriptions = const [],
   });
 
@@ -29,6 +30,7 @@ class SyncBundleDto {
   final List<Budget> budgets;
   final List<Goal> goals;
   final List<Debt> debts;
+  final List<DebtPayment> debtPayments;
   final List<Subscription> subscriptions;
 
   bool get isEmpty =>
@@ -38,6 +40,7 @@ class SyncBundleDto {
       budgets.isEmpty &&
       goals.isEmpty &&
       debts.isEmpty &&
+      debtPayments.isEmpty &&
       subscriptions.isEmpty;
 
   Map<String, dynamic> toJson() => {
@@ -47,6 +50,7 @@ class SyncBundleDto {
         'budgets': budgets.map(budgetToJson).toList(),
         'goals': goals.map(goalToJson).toList(),
         'debts': debts.map(debtToJson).toList(),
+        'debtPayments': debtPayments.map(debtPaymentToJson).toList(),
         'subscriptions': subscriptions.map(subscriptionToJson).toList(),
         'families': const <Map<String, dynamic>>[],
         'familyMembers': const <Map<String, dynamic>>[],
@@ -70,6 +74,9 @@ class SyncBundleDto {
             .toList(),
         debts: (json['debts'] as List<dynamic>? ?? const [])
             .map((e) => debtFromJson(e as Map<String, dynamic>))
+            .toList(),
+        debtPayments: (json['debtPayments'] as List<dynamic>? ?? const [])
+            .map((e) => debtPaymentFromJson(e as Map<String, dynamic>))
             .toList(),
         subscriptions: (json['subscriptions'] as List<dynamic>? ?? const [])
             .map((e) => subscriptionFromJson(e as Map<String, dynamic>))
@@ -142,6 +149,7 @@ Map<String, dynamic> accountToJson(Account a) => {
       'type': a.type,
       'currency': a.currency,
       'initialBalanceKopecks': a.initialBalanceKopecks,
+      'creditLimitKopecks': a.creditLimitKopecks,
       'isArchived': a.isArchived,
       'isDeleted': a.isDeleted,
       'createdAt': _iso(a.createdAt),
@@ -155,6 +163,7 @@ Account accountFromJson(Map<String, dynamic> j) => Account(
       type: j['type'] as String,
       currency: j['currency'] as String? ?? 'RUB',
       initialBalanceKopecks: (j['initialBalanceKopecks'] as num).toInt(),
+      creditLimitKopecks: (j['creditLimitKopecks'] as num?)?.toInt(),
       isArchived: j['isArchived'] as bool? ?? false,
       isDeleted: j['isDeleted'] as bool? ?? false,
       createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
@@ -285,6 +294,7 @@ Map<String, dynamic> debtToJson(Debt d) => {
       'counterpartyName': d.counterpartyName,
       'direction': d.direction.code,
       'amountKopecks': d.amountKopecks,
+      'interestRate': d.interestRate,
       'dueDate': d.dueDate == null ? null : _iso(d.dueDate!),
       'status': d.status.code,
       'isDeleted': d.isDeleted,
@@ -298,10 +308,39 @@ Debt debtFromJson(Map<String, dynamic> j) => Debt(
       counterpartyName: j['counterpartyName'] as String,
       direction: parseDebtDirection(j['direction'] as String),
       amountKopecks: (j['amountKopecks'] as num).toInt(),
+      interestRate: (j['interestRate'] as num?)?.toDouble() ?? 0.0,
       dueDate: j['dueDate'] == null
           ? null
           : DateTime.parse(j['dueDate'] as String).toUtc(),
       status: parseDebtStatus(j['status'] as String),
+      isDeleted: j['isDeleted'] as bool? ?? false,
+      createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
+      updatedAt: DateTime.parse(j['updatedAt'] as String).toUtc(),
+    );
+
+Map<String, dynamic> debtPaymentToJson(DebtPayment p) => {
+      'id': p.id,
+      'debtId': p.debtId,
+      'dueDate': _iso(p.dueDate),
+      'plannedAmountKopecks': p.plannedAmountKopecks,
+      'isPaid': p.isPaid,
+      'paidAt': p.paidAt == null ? null : _iso(p.paidAt!),
+      'transactionId': p.transactionId,
+      'isDeleted': p.isDeleted,
+      'createdAt': _iso(p.createdAt),
+      'updatedAt': _iso(p.updatedAt),
+    };
+
+DebtPayment debtPaymentFromJson(Map<String, dynamic> j) => DebtPayment(
+      id: j['id'] as String,
+      debtId: j['debtId'] as String,
+      dueDate: DateTime.parse(j['dueDate'] as String).toUtc(),
+      plannedAmountKopecks: (j['plannedAmountKopecks'] as num).toInt(),
+      isPaid: j['isPaid'] as bool? ?? false,
+      paidAt: j['paidAt'] == null
+          ? null
+          : DateTime.parse(j['paidAt'] as String).toUtc(),
+      transactionId: j['transactionId'] as String?,
       isDeleted: j['isDeleted'] as bool? ?? false,
       createdAt: DateTime.parse(j['createdAt'] as String).toUtc(),
       updatedAt: DateTime.parse(j['updatedAt'] as String).toUtc(),

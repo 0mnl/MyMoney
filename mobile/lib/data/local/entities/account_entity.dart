@@ -18,6 +18,10 @@ class AccountEntity {
   late String type;
   late String currency;
   late int initialBalanceKopecks;
+
+  /// Лимит кредитки в копейках (Bible v2 §7.2). null для не-кредитных счетов.
+  int? creditLimitKopecks;
+
   late bool isArchived;
   late bool isDeleted;
   late DateTime createdAt;
@@ -30,6 +34,7 @@ class AccountEntity {
         type: type,
         currency: currency,
         initialBalanceKopecks: initialBalanceKopecks,
+        creditLimitKopecks: creditLimitKopecks,
         isArchived: isArchived,
         isDeleted: isDeleted,
         createdAt: createdAt,
@@ -43,6 +48,7 @@ class AccountEntity {
     ..type = a.type
     ..currency = a.currency
     ..initialBalanceKopecks = a.initialBalanceKopecks
+    ..creditLimitKopecks = a.creditLimitKopecks
     ..isArchived = a.isArchived
     ..isDeleted = a.isDeleted
     ..createdAt = a.createdAt

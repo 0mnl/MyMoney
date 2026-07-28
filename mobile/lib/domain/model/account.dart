@@ -5,6 +5,11 @@ class Account {
   final String type;
   final String currency;
   final int initialBalanceKopecks;
+
+  /// Лимит кредитной карты в копейках. `null` для не-кредитных счетов.
+  /// Bible v2 §7.2, §12.
+  final int? creditLimitKopecks;
+
   final bool isArchived;
   final bool isDeleted;
   final DateTime createdAt;
@@ -17,6 +22,7 @@ class Account {
     required this.type,
     this.currency = 'RUB',
     this.initialBalanceKopecks = 0,
+    this.creditLimitKopecks,
     this.isArchived = false,
     this.isDeleted = false,
     required this.createdAt,
@@ -27,6 +33,8 @@ class Account {
     String? name,
     String? type,
     int? initialBalanceKopecks,
+    int? creditLimitKopecks,
+    bool clearCreditLimit = false,
     bool? isArchived,
     bool? isDeleted,
     DateTime? updatedAt,
@@ -38,6 +46,8 @@ class Account {
         type: type ?? this.type,
         currency: currency,
         initialBalanceKopecks: initialBalanceKopecks ?? this.initialBalanceKopecks,
+        creditLimitKopecks:
+            clearCreditLimit ? null : (creditLimitKopecks ?? this.creditLimitKopecks),
         isArchived: isArchived ?? this.isArchived,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt,

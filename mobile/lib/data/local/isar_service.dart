@@ -5,6 +5,7 @@ import 'entities/account_entity.dart';
 import 'entities/budget_entity.dart';
 import 'entities/category_entity.dart';
 import 'entities/debt_entity.dart';
+import 'entities/debt_payment_entity.dart';
 import 'entities/goal_entity.dart';
 import 'entities/subscription_entity.dart';
 import 'entities/transaction_entity.dart';
@@ -27,6 +28,7 @@ class IsarService {
         BudgetEntitySchema,
         GoalEntitySchema,
         DebtEntitySchema,
+        DebtPaymentEntitySchema,
         SubscriptionEntitySchema,
       ],
       directory: dir.path,

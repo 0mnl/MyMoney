@@ -25,6 +25,10 @@ class DebtEntity {
   late IsarDebtDirection direction;
 
   late int amountKopecks;
+
+  /// Годовая ставка, % (Bible v2 §7.7). 0.0 == беспроцентный долг.
+  late double interestRate;
+
   DateTime? dueDate;
 
   @enumerated
@@ -43,6 +47,7 @@ class DebtEntity {
           IsarDebtDirection.owedToMe => DebtDirection.owedToMe,
         },
         amountKopecks: amountKopecks,
+        interestRate: interestRate,
         dueDate: dueDate,
         status: switch (status) {
           IsarDebtStatus.open => DebtStatus.open,
@@ -62,6 +67,7 @@ class DebtEntity {
       DebtDirection.owedToMe => IsarDebtDirection.owedToMe,
     }
     ..amountKopecks = d.amountKopecks
+    ..interestRate = d.interestRate
     ..dueDate = d.dueDate
     ..status = switch (d.status) {
       DebtStatus.open => IsarDebtStatus.open,
