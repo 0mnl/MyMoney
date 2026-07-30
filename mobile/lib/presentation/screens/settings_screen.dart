@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../sync/sync_scheduler.dart';
 import 'home_shell.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 const _bgBeige = Color(0xFFF4EDE3);
 const _labelsPrimary = Colors.black;
@@ -215,22 +216,8 @@ class SettingsScreen extends ConsumerWidget {
       );
       return;
     }
-    // Пока нет отдельного экрана профиля — показываем краткие сведения.
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            SelectableText('userId: ${(snap as dynamic).userId}'),
-            SelectableText('familyId: ${(snap as dynamic).familyId}'),
-          ],
-        ),
-      ),
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
     );
   }
 
