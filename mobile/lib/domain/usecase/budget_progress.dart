@@ -9,10 +9,14 @@ DateTime budgetPeriodEnd(BudgetPeriodType type, DateTime start) {
     case BudgetPeriodType.week:
       return start.add(const Duration(days: 7));
     case BudgetPeriodType.month:
+      final y = start.month == 12 ? start.year + 1 : start.year;
+      final m = start.month == 12 ? 1 : start.month + 1;
+      // day 0 of (m+1) == last day of m; handles 28/29/30/31-day months safely
+      final lastDay = DateTime.utc(y, m + 1, 0).day;
       return DateTime.utc(
-        start.year,
-        start.month + 1,
-        start.day,
+        y,
+        m,
+        start.day.clamp(1, lastDay),
         start.hour,
         start.minute,
         start.second,

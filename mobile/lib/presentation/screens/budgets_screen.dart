@@ -34,7 +34,8 @@ class BudgetsScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Ошибка: $e')),
               data: (categories) {
-                if (budgets.isEmpty) {
+                final visibleBudgets = budgets.where((b) => !b.isDeleted).toList();
+                if (visibleBudgets.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
@@ -48,10 +49,10 @@ class BudgetsScreen extends ConsumerWidget {
                 final catById = {for (final c in categories) c.id: c};
                 return ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: budgets.length,
+                  itemCount: visibleBudgets.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 4),
                   itemBuilder: (context, i) {
-                    final b = budgets[i];
+                    final b = visibleBudgets[i];
                     final progress = computeBudgetProgress(b, transactions);
                     return _BudgetCard(
                       progress: progress,

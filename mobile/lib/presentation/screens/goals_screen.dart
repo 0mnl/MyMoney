@@ -20,7 +20,8 @@ class GoalsScreen extends ConsumerWidget {
         body: goalsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Ошибка: $e')),
-          data: (goals) {
+          data: (allGoals) {
+            final goals = allGoals.where((g) => !g.isDeleted).toList();
             if (goals.isEmpty) {
               return const Center(
                 child: Padding(
@@ -114,7 +115,11 @@ class GoalsScreen extends ConsumerWidget {
     } else {
       final next = goal.currentAmountKopecks - amount;
       if (next < 0) {
-        // молча не даём уйти в минус — правило совпадает с backend usecase
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Невозможно снять больше, чем накоплено')),
+          );
+        }
         return;
       }
       await repo.update(goal.copyWith(currentAmountKopecks: next, updatedAt: now));

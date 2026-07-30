@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 import '../../domain/model/account.dart';
 import '../../domain/model/balances.dart';
+import '../../domain/model/budget.dart';
 import '../../domain/model/category.dart';
 import '../../domain/model/enums.dart';
 import '../../domain/model/money.dart';
 import '../../domain/model/transaction.dart';
+import '../providers/analytics_providers.dart';
 import '../widgets/category_icon.dart';
 import 'accounts_screen.dart';
 import 'analytics_screen.dart';
@@ -286,19 +288,20 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _PeriodSegmentedControl extends StatefulWidget {
+class _PeriodSegmentedControl extends ConsumerWidget {
   const _PeriodSegmentedControl();
 
-  @override
-  State<_PeriodSegmentedControl> createState() => _PeriodSegmentedControlState();
-}
-
-class _PeriodSegmentedControlState extends State<_PeriodSegmentedControl> {
-  int _selected = 0;
-  static const _labels = ['Неделя', 'Месяц', 'Год'];
+  static const _items = [
+    (BudgetPeriodType.week, 'Неделя'),
+    (BudgetPeriodType.month, 'Месяц'),
+    (BudgetPeriodType.year, 'Год'),
+  ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(selectedAnalyticsPeriodProvider);
+    final selected = _items.indexWhere((e) => e.$1 == period);
+
     return Container(
       height: 32,
       clipBehavior: Clip.antiAlias,
@@ -309,15 +312,17 @@ class _PeriodSegmentedControlState extends State<_PeriodSegmentedControl> {
       padding: const EdgeInsets.all(2),
       child: Row(
         children: [
-          for (var i = 0; i < _labels.length; i++)
+          for (var i = 0; i < _items.length; i++)
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _selected = i),
+                onTap: () => ref
+                    .read(selectedAnalyticsPeriodProvider.notifier)
+                    .state = _items[i].$1,
                 child: Container(
                   height: 28,
                   alignment: Alignment.center,
-                  decoration: _selected == i
+                  decoration: selected == i
                       ? BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(1000),
@@ -331,13 +336,13 @@ class _PeriodSegmentedControlState extends State<_PeriodSegmentedControl> {
                         )
                       : null,
                   child: Text(
-                    _labels[i],
+                    _items[i].$2,
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 13.33,
                       fontFamily: 'SF Pro',
                       fontWeight:
-                          _selected == i ? FontWeight.w600 : FontWeight.w500,
+                          selected == i ? FontWeight.w600 : FontWeight.w500,
                       height: 1.35,
                       letterSpacing: -0.08,
                     ),
@@ -351,86 +356,118 @@ class _PeriodSegmentedControlState extends State<_PeriodSegmentedControl> {
   }
 }
 
-class _CategoryDonutSection extends StatelessWidget {
+class _CategoryDonutSection extends ConsumerWidget {
   const _CategoryDonutSection({required this.onTap});
   final VoidCallback onTap;
 
-  // Placeholder distribution — real per-period aggregation lives in
-  // analytics_providers; will be wired up in a follow-up task.
-  static const _legend = <_LegendItem>[
-    _LegendItem(color: _accentIndigo, label: 'Жильё', percent: '45%'),
-    _LegendItem(color: _accentBrown, label: 'Транспорт', percent: '29%'),
-    _LegendItem(color: _accentYellow, label: 'Еда', percent: '15%'),
-    _LegendItem(color: _accentCyan, label: 'Техника', percent: '10%'),
-    _LegendItem(color: _accentPink, label: 'Стройка', percent: '10%'),
-    _LegendItem(color: _accentBlue, label: 'Прочее', percent: '10%'),
+  static const _chartColors = [
+    _accentIndigo,
+    _accentBrown,
+    _accentYellow,
+    _accentCyan,
+    _accentPink,
+    _accentBlue,
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final analyticsAsync = ref.watch(periodAnalyticsProvider);
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 174,
+      child: analyticsAsync.when(
+        loading: () => const SizedBox(
           height: 174,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                decoration: const ShapeDecoration(
-                  color: _accentIndigo,
-                  shape: OvalBorder(),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (analytics) {
+          final total = analytics.totalExpenseKopecks;
+          final cats = analytics.categoryBreakdown.values.toList()
+            ..sort((a, b) => b.totalKopecks.compareTo(a.totalKopecks));
+          final top = cats.take(6).toList();
+
+          if (top.isEmpty) {
+            return const SizedBox(
+              height: 100,
+              child: Center(
+                child: Text(
+                  'Нет расходов за этот период',
+                  style: TextStyle(color: _labelsSecondary),
                 ),
               ),
-              const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Расходы',
-                    style: TextStyle(
-                      color: _labelsSecondary,
-                      fontSize: 15,
-                      fontFamily: 'SF Pro',
-                      fontWeight: FontWeight.w400,
-                      height: 1.33,
-                      letterSpacing: -0.23,
+            );
+          }
+
+          final legend = top.asMap().entries.map((e) => _LegendItem(
+                color: _chartColors[e.key % _chartColors.length],
+                label: e.value.categoryName,
+                percent: '${e.value.percentageOfTotal.toStringAsFixed(0)}%',
+              )).toList();
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 174,
+                height: 174,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      decoration: ShapeDecoration(
+                        color: _chartColors[0],
+                        shape: const OvalBorder(),
+                      ),
                     ),
-                  ),
-                  Text(
-                    '48 500 ',
-                    style: TextStyle(
-                      color: _labelsPrimary,
-                      fontSize: 22,
-                      fontFamily: 'SF Pro',
-                      fontWeight: FontWeight.w700,
-                      height: 1.27,
-                      letterSpacing: -0.26,
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Расходы',
+                          style: TextStyle(
+                            color: _labelsSecondary,
+                            fontSize: 15,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w400,
+                            height: 1.33,
+                            letterSpacing: -0.23,
+                          ),
+                        ),
+                        Text(
+                          Money.formatRub(total),
+                          style: const TextStyle(
+                            color: _labelsPrimary,
+                            fontSize: 22,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w700,
+                            height: 1.27,
+                            letterSpacing: -0.26,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < legend.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 5),
+                      _CategoryLegendRow(item: legend[i]),
+                    ],
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < _legend.length; i++) ...[
-                if (i > 0) const SizedBox(height: 5),
-                _CategoryLegendRow(item: _legend[i]),
-              ],
-            ],
-          ),
-        ),
-      ],
-    ),
+          );
+        },
+      ),
     );
   }
 }

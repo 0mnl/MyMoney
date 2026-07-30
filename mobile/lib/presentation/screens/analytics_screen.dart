@@ -324,8 +324,9 @@ class AnalyticsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: (comp.actualKopecks / comp.plannedKopecks)
-                        .clamp(0.0, 1.0),
+                    value: comp.plannedKopecks <= 0
+                        ? 0.0
+                        : (comp.actualKopecks / comp.plannedKopecks).clamp(0.0, 1.0),
                     minHeight: 6,
                     backgroundColor: Colors.grey[300],
                     valueColor: AlwaysStoppedAnimation<Color>(

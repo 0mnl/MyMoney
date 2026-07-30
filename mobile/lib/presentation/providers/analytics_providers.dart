@@ -16,12 +16,19 @@ final analyticsPeriodRangeProvider =
     Provider<(DateTime, DateTime)>((ref) {
   final period = ref.watch(selectedAnalyticsPeriodProvider);
   final now = DateTime.now().toUtc();
+  // Use local time for weekday to avoid timezone cross-day mismatch (e.g. UTC+3)
+  final localNow = DateTime.now().toLocal();
+
+  final weekLocalStart = DateTime(
+    localNow.year,
+    localNow.month,
+    localNow.day - (localNow.weekday - 1),
+  );
+  final weekStart = weekLocalStart.toUtc();
+  final weekEnd = weekStart.add(const Duration(days: 7));
 
   final (start, end) = switch (period) {
-    BudgetPeriodType.week => (
-      now.subtract(Duration(days: now.weekday - 1)),
-      now.add(Duration(days: 8 - now.weekday))
-    ),
+    BudgetPeriodType.week => (weekStart, weekEnd),
     BudgetPeriodType.month => (
       DateTime.utc(now.year, now.month, 1),
       now.month == 12

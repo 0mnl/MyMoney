@@ -22,7 +22,8 @@ class DebtsScreen extends ConsumerWidget {
         body: debtsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Ошибка: $e')),
-          data: (debts) {
+          data: (allDebts) {
+            final debts = allDebts.where((d) => !d.isDeleted).toList();
             if (debts.isEmpty) {
               return const Center(
                 child: Padding(
@@ -244,7 +245,9 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
                     firstDate: DateTime.now().subtract(const Duration(days: 365)),
                     lastDate: DateTime.now().add(const Duration(days: 3650)),
                   );
-                  if (picked != null) setState(() => _dueDate = picked.toUtc());
+                  if (picked != null) {
+                    setState(() => _dueDate = DateTime.utc(picked.year, picked.month, picked.day));
+                  }
                 },
                 child: const Text('Выбрать'),
               ),

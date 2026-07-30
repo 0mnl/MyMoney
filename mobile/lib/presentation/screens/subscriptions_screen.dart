@@ -21,7 +21,8 @@ class SubscriptionsScreen extends ConsumerWidget {
         body: subsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Ошибка: $e')),
-          data: (subs) {
+          data: (allSubs) {
+            final subs = allSubs.where((s) => !s.isDeleted).toList();
             if (subs.isEmpty) {
               return const Center(
                 child: Padding(
@@ -66,6 +67,14 @@ class SubscriptionsScreen extends ConsumerWidget {
     );
   }
 
+  static DateTime _safeNextMonth(DateTime from) {
+    final month = from.month + 1;
+    final year = from.year + (month > 12 ? 1 : 0);
+    final m = month > 12 ? 1 : month;
+    final lastDay = DateTime.utc(year, m + 1, 0).day;
+    return DateTime.utc(year, m, from.day.clamp(1, lastDay), from.hour, from.minute);
+  }
+
   Future<void> _delete(BuildContext context, WidgetRef ref, Subscription sub) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -88,9 +97,7 @@ class SubscriptionsScreen extends ConsumerWidget {
     final repo = await ref.read(subscriptionRepositoryProvider.future);
     final next = switch (sub.billingPeriod) {
       SubscriptionPeriod.weekly => sub.nextChargeDate.add(const Duration(days: 7)),
-      SubscriptionPeriod.monthly => DateTime.utc(
-          sub.nextChargeDate.year, sub.nextChargeDate.month + 1, sub.nextChargeDate.day,
-          sub.nextChargeDate.hour, sub.nextChargeDate.minute),
+      SubscriptionPeriod.monthly => _safeNextMonth(sub.nextChargeDate),
       SubscriptionPeriod.yearly => DateTime.utc(
           sub.nextChargeDate.year + 1, sub.nextChargeDate.month, sub.nextChargeDate.day,
           sub.nextChargeDate.hour, sub.nextChargeDate.minute),
@@ -246,7 +253,9 @@ class _SubFormState extends ConsumerState<_SubForm> {
                     firstDate: DateTime.now().subtract(const Duration(days: 30)),
                     lastDate: DateTime.now().add(const Duration(days: 3650)),
                   );
-                  if (picked != null) setState(() => _nextDate = picked.toUtc());
+                  if (picked != null) {
+                    setState(() => _nextDate = DateTime.utc(picked.year, picked.month, picked.day));
+                  }
                 },
                 child: const Text('Выбрать'),
               ),

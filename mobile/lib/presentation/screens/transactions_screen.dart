@@ -29,7 +29,8 @@ class TransactionsScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Ошибка: $e')),
               data: (accounts) {
-                if (transactions.isEmpty) {
+                final visible = transactions.where((t) => !t.isDeleted).toList();
+                if (visible.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
@@ -41,10 +42,10 @@ class TransactionsScreen extends ConsumerWidget {
                 final accById = {for (final a in accounts) a.id: a};
                 final df = DateFormat('d MMM y, HH:mm', 'ru_RU');
                 return ListView.separated(
-                  itemCount: transactions.length,
+                  itemCount: visible.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, i) {
-                    final t = transactions[i];
+                    final t = visible[i];
                     final cat = t.categoryId != null ? catById[t.categoryId!] : null;
                     final acc = accById[t.accountId];
                     final isIncome = t.type == TransactionType.income;

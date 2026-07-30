@@ -24,7 +24,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final authAsync = ref.watch(authSnapshotProvider);
     final snap = authAsync.value;
-    final userId = (snap as dynamic)?.userId as String? ?? '—';
+    final userId = snap?.userId ?? '—';
 
     return Scaffold(
       backgroundColor: _bgBeige,
@@ -83,7 +83,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           const SizedBox(height: 6),
                           GestureDetector(
-                            onTap: () {},
+                            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Изменение фото — пока не реализовано')),
+                            ),
                             child: const Text(
                               'Изменить фото',
                               style: TextStyle(

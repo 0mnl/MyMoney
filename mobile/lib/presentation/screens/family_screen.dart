@@ -126,7 +126,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 else
                   ..._members!.map((m) => ListTile(
                         leading: Icon(m.role == 'OWNER' ? Icons.star : Icons.person),
-                        title: Text('user ${m.userId.substring(0, 8)}…'),
+                        title: Text('user ${m.userId.length > 8 ? '${m.userId.substring(0, 8)}…' : m.userId}'),
                         subtitle: Text(m.role),
                       )),
                 TextButton(
