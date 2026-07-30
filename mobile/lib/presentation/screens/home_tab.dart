@@ -9,12 +9,11 @@ import '../../domain/model/enums.dart';
 import '../../domain/model/money.dart';
 import '../../domain/model/transaction.dart';
 import '../widgets/category_icon.dart';
+import 'accounts_screen.dart';
+import 'analytics_screen.dart';
 import 'home_shell.dart';
 
-// Tab indices inside HomeShell — keep in sync with _HomeShellState._tabs.
-const int _tabAccounts = 1;
-const int _tabTransactions = 2;
-const int _tabAnalytics = 7;
+const int _tabTransactions = 1;
 
 const _bgBeige = Color(0xFFF4EDE3);
 const _labelsPrimary = Colors.black;
@@ -106,19 +105,31 @@ class HomeTab extends ConsumerWidget {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _CategoryDonutSection(
-                          onTap: () => _switchTab(ref, _tabAnalytics),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const AnalyticsScreen(),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 28),
                       _SectionHeader(
                         title: 'Счета',
-                        onAll: () => _switchTab(ref, _tabAccounts),
+                        onAll: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AccountsScreen(),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       _AccountsRow(
                         accounts: visibleAccounts,
                         balances: balances,
-                        onCardTap: (_) => _switchTab(ref, _tabAccounts),
+                        onCardTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AccountsScreen(),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       _SectionHeader(
@@ -484,7 +495,7 @@ class _AccountsRow extends StatelessWidget {
   });
   final List<Account> accounts;
   final Map<String, int> balances;
-  final ValueChanged<Account> onCardTap;
+  final VoidCallback onCardTap;
 
   @override
   Widget build(BuildContext context) {
@@ -510,7 +521,7 @@ class _AccountsRow extends StatelessWidget {
             icon: _iconForAccountType(a.type),
             label: a.name,
             amount: Money.formatRub(balances[a.id] ?? 0),
-            onTap: () => onCardTap(a),
+            onTap: onCardTap,
           );
         },
       ),
