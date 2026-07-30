@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/providers/api_providers.dart';
-import '../../core/providers/app_providers.dart';
-import '../../sync/sync_scheduler.dart';
-import 'home_shell.dart';
+import 'accounts_screen.dart';
+import 'analytics_screen.dart';
+import 'categories_screen.dart';
+import 'family_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
@@ -15,22 +15,12 @@ const _grey = Color(0xFF9E9E9E);
 const _searchFill = Color(0x28787880);
 const _searchLabel = Color(0xFF727272);
 
-// Tab indices — keep in sync with _HomeShellState._tabs.
-const int _tabAccounts = 1;
-const int _tabTransactions = 2;
-const int _tabAnalytics = 7;
-const int _tabFamily = 8;
-
-/// Экран настроек по Figma-макету. Внутри — все существующие
-/// администраторские функции (URL бэкенда, вход, ручной sync, выход).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authSnapshotProvider);
-    final schedulerAsync = ref.watch(syncSchedulerProvider);
-    final statusAsync = ref.watch(syncStatusProvider);
 
     return Container(
       color: _bgBeige,
@@ -75,14 +65,14 @@ class SettingsScreen extends ConsumerWidget {
                     iconBg: const Color(0xFFE8F0FF),
                     iconColor: const Color(0xFF0088FF),
                     title: 'Счета',
-                    onTap: () => _switchTab(ref, _tabAccounts),
+                    onTap: () => _openScreen(context, const AccountsScreen()),
                   ),
                   _MenuRow(
                     icon: Icons.category,
                     iconBg: const Color(0xFFFFF3E0),
                     iconColor: const Color(0xFFFF9500),
                     title: 'Категории',
-                    onTap: () => _switchTab(ref, _tabTransactions),
+                    onTap: () => _openScreen(context, const CategoriesScreen()),
                   ),
                   _MenuRow(
                     icon: Icons.people,
@@ -93,7 +83,7 @@ class SettingsScreen extends ConsumerWidget {
                       data: (snap) => snap == null ? 'Не подключено' : '',
                       orElse: () => '',
                     ),
-                    onTap: () => _switchTab(ref, _tabFamily),
+                    onTap: () => _openScreen(context, const FamilyScreen()),
                     isLast: true,
                   ),
                 ],
@@ -101,27 +91,11 @@ class SettingsScreen extends ConsumerWidget {
               _GroupCard(
                 rows: [
                   _MenuRow(
-                    icon: Icons.dns,
-                    iconBg: const Color(0xFFEDEDF7),
-                    iconColor: const Color(0xFF6155F5),
-                    title: 'Бэкенд',
-                    trailing: '',
-                    onTap: () => _openBackendSheet(context, ref),
-                  ),
-                  _MenuRow(
-                    icon: Icons.cloud_upload,
-                    iconBg: const Color(0xFFE0F7FA),
-                    iconColor: const Color(0xFF00C0E8),
-                    title: 'Резервное копирование',
-                    trailing: _lastSyncLabel(statusAsync.value),
-                    onTap: () => _triggerSync(context, schedulerAsync, authAsync),
-                  ),
-                  _MenuRow(
                     icon: Icons.picture_as_pdf,
                     iconBg: const Color(0xFFFDECEC),
                     iconColor: const Color(0xFFFF383C),
                     title: 'Экспорт в PDF',
-                    onTap: () => _switchTab(ref, _tabAnalytics),
+                    onTap: () => _openScreen(context, const AnalyticsScreen()),
                     isLast: true,
                   ),
                 ],
@@ -180,28 +154,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  static void _switchTab(WidgetRef ref, int index) {
-    ref.read(homeShellTabProvider.notifier).state = index;
-  }
-
-  static String _lastSyncLabel(SyncStatus? status) {
-    if (status == null) return 'Не выполнено';
-    switch (status.phase) {
-      case SyncPhase.syncing:
-        return 'Идёт…';
-      case SyncPhase.offline:
-        return 'Оффлайн';
-      case SyncPhase.error:
-        return 'Ошибка';
-      case SyncPhase.idle:
-        final ts = status.lastSyncedAt;
-        if (ts == null) return 'Не выполнено';
-        final today = DateTime.now();
-        final isToday =
-            ts.year == today.year && ts.month == today.month && ts.day == today.day;
-        final time = DateFormat.Hm('ru_RU').format(ts);
-        return isToday ? 'Сегодня, $time' : '${DateFormat.yMd('ru_RU').format(ts)}, $time';
-    }
+  static Future<void> _openScreen(BuildContext context, Widget screen) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
   }
 
   static Future<void> _openLoginOrProfile(
@@ -219,88 +175,6 @@ class SettingsScreen extends ConsumerWidget {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
     );
-  }
-
-  static Future<void> _openBackendSheet(BuildContext context, WidgetRef ref) async {
-    final prefs = await ref.read(sharedPrefsProvider.future);
-    final current = await ref.read(apiBaseUrlProvider.future);
-    if (!context.mounted) return;
-    final controller = TextEditingController(text: current);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'URL бэкенда',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'http://10.0.2.2:8080',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.url,
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () async {
-                await setApiBaseUrl(prefs, controller.text);
-                ref.invalidate(apiBaseUrlProvider);
-                ref.invalidate(apiClientProvider);
-                ref.invalidate(authApiProvider);
-                ref.invalidate(familyApiProvider);
-                ref.invalidate(syncApiProvider);
-                ref.invalidate(syncManagerProvider);
-                ref.invalidate(syncSchedulerProvider);
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('URL сохранён')),
-                  );
-                }
-              },
-              child: const Text('Сохранить'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Future<void> _triggerSync(
-    BuildContext context,
-    AsyncValue<SyncScheduler> schedulerAsync,
-    AsyncValue<Object?> authAsync,
-  ) async {
-    final scheduler = schedulerAsync.value;
-    if (scheduler == null || authAsync.value == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Сначала войдите в учётную запись')),
-      );
-      return;
-    }
-    final ok = await scheduler.triggerSync();
-    if (!context.mounted) return;
-    final s = scheduler.status;
-    final msg = ok
-        ? (s.lastResult == null
-            ? 'Синхронизация завершена'
-            : 'Готово: отправлено ${s.lastResult!.pushed}, получено ${s.lastResult!.pulled}')
-        : (s.phase == SyncPhase.offline ? 'Нет соединения' : 'Пропущено');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   static Future<void> _logout(BuildContext context, WidgetRef ref) async {
@@ -362,9 +236,7 @@ class _ProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isAuthed = authAsync.value != null;
     final title = isAuthed ? 'Учётная запись' : 'Гость';
-    final subtitle = isAuthed
-        ? 'Аккаунт, синхронизация и другое'
-        : 'Войдите, чтобы включить синхронизацию';
+    final subtitle = isAuthed ? 'Профиль и данные' : 'Войдите для доступа к профилю';
 
     return Material(
       color: Colors.transparent,

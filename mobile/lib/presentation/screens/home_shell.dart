@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/api_providers.dart';
-import '../../sync/sync_scheduler.dart';
 import 'add_transaction_screen.dart';
 import 'budgets_screen.dart';
 import 'home_tab.dart';
@@ -28,20 +26,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(syncSchedulerProvider, (_, next) {
-      next.whenData((s) => s.start());
-    });
-    ref.watch(syncSchedulerProvider);
-
     final index = ref.watch(homeShellTabProvider);
 
     return Scaffold(
-      body: Column(
-        children: [
-          const _SyncStatusBar(),
-          Expanded(child: IndexedStack(index: index, children: _tabs)),
-        ],
-      ),
+      body: IndexedStack(index: index, children: _tabs),
       bottomNavigationBar: _FigmaBottomNav(
         selectedIndex: index,
         onTabSelected: (i) => ref.read(homeShellTabProvider.notifier).state = i,
@@ -183,52 +171,3 @@ class _FigmaBottomNav extends StatelessWidget {
   }
 }
 
-// ─── Sync status strip ───────────────────────────────────────────────────────
-
-class _SyncStatusBar extends ConsumerWidget {
-  const _SyncStatusBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(syncStatusProvider);
-    final status = async.value;
-    if (status == null || status.phase == SyncPhase.idle) {
-      return const SizedBox.shrink();
-    }
-    final (bg, fg, icon, label) = switch (status.phase) {
-      SyncPhase.syncing => (
-          Colors.blue.shade50,
-          Colors.blue.shade900,
-          Icons.sync,
-          'Синхронизация...',
-        ),
-      SyncPhase.offline => (
-          Colors.grey.shade200,
-          Colors.grey.shade800,
-          Icons.cloud_off,
-          'Нет соединения',
-        ),
-      SyncPhase.error => (
-          Colors.orange.shade50,
-          Colors.orange.shade900,
-          Icons.warning_amber_rounded,
-          'Ошибка синхронизации',
-        ),
-      SyncPhase.idle => (Colors.transparent, Colors.transparent, Icons.check, ''),
-    };
-    return Container(
-      color: bg,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 12, color: fg)),
-          ],
-        ),
-      ),
-    );
-  }
-}
