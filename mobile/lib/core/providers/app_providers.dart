@@ -73,6 +73,8 @@ final bootstrapProvider = FutureProvider<LocalSession>((ref) async {
     await prefs.setBool('seeded', true);
   }
 
+  await isarService.purgeOldSoftDeleted();
+
   return LocalSession(userId: userId, familyId: familyId);
 });
 

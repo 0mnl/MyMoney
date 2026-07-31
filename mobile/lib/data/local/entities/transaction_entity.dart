@@ -15,7 +15,7 @@ class TransactionEntity {
   @Index(unique: true, replace: true)
   late String id;
 
-  @Index()
+  @Index(composite: [CompositeIndex('occurredAt')])
   late String familyId;
 
   @Index()
