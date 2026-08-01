@@ -200,9 +200,9 @@ sudo usermod -aG docker $USER
 sudo systemctl enable ufw
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp    # SSH
-sudo ufw allow 80/tcp    # HTTP (для certbot и редиректа)
-sudo ufw allow 443/tcp   # HTTPS
+sudo ufw allow 22/tcp    
+sudo ufw allow 80/tcp    
+sudo ufw allow 443/tcp   
 sudo ufw enable
 sudo ufw status
 ```
@@ -442,8 +442,7 @@ du -sh /var/lib/docker /opt/backups
 ### 4.2 Собрать APK, «зашитый» под ваш сервер
 ```bash
 cd mobile
-flutter build apk --release \
-    --dart-define=API_BASE_URL=https://mymoney.example.com
+flutter build apk --release \ --dart-define=API_BASE_URL=https://mymoney.example.com
 ```
 Такой APK сразу открывается на нужный сервер, без ручного ввода URL.
 
