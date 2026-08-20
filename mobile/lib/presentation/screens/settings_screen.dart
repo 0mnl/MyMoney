@@ -6,7 +6,6 @@ import 'accounts_screen.dart';
 import 'analytics_screen.dart';
 import 'categories_screen.dart';
 import 'family_screen.dart';
-import 'login_screen.dart';
 import 'profile_screen.dart';
 
 const _bgBeige = Color(0xFFF4EDE3);
@@ -54,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _ProfileCard(
                   authAsync: authAsync,
-                  onTap: () => _openLoginOrProfile(context, ref, authAsync),
+                  onTap: () => _openScreen(context, const ProfileScreen()),
                 ),
               ),
               const SizedBox(height: 16),
@@ -160,30 +159,13 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  static Future<void> _openLoginOrProfile(
-    BuildContext context,
-    WidgetRef ref,
-    AsyncValue<Object?> authAsync,
-  ) async {
-    final snap = authAsync.value;
-    if (snap == null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-      );
-      return;
-    }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
-    );
-  }
-
+  /// Drops the session. The auth gate in main.dart watches
+  /// [authSnapshotProvider], so invalidating it here replaces the whole tree
+  /// with the onboarding flow — no navigation needed, and no snackbar, since
+  /// this screen is gone by the time one could show.
   static Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authStoreProvider).clear();
     ref.invalidate(authSnapshotProvider);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Вы вышли из учётной записи')),
-    );
   }
 
   static void _notImplemented(BuildContext context, String what) {

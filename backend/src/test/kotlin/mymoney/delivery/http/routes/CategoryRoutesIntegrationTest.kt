@@ -23,8 +23,10 @@ import mymoney.delivery.http.dto.CreateCategoryRequest
 import mymoney.delivery.http.dto.RegisterRequest
 import mymoney.delivery.http.dto.UpdateCategoryRequest
 import mymoney.domain.usecase.category.SystemCategoriesCatalog
-import mymoney.module
+import mymoney.configureApplication
+import mymoney.test.CapturingVerificationCodeSender
 import mymoney.test.TestPostgres
+import mymoney.test.registerAndVerify
 import mymoney.test.testAppConfig
 import java.util.UUID
 import kotlin.test.Test
@@ -40,16 +42,12 @@ class CategoryRoutesIntegrationTest {
 
     private fun ApplicationTestBuilder.setup() {
         environment { config = testAppConfig(TestPostgres.container) }
-        application { module() }
+        application { configureApplication(CapturingVerificationCodeSender) }
     }
 
     private suspend fun ApplicationTestBuilder.registerUser(): TestUser {
         val email = "cat-${UUID.randomUUID()}@example.com"
-        val resp = client.post("/v1/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString<RegisterRequest>(RegisterRequest(email, "password123")))
-        }
-        val s = json.decodeFromString<AuthSessionResponse>(resp.bodyAsText())
+        val s = registerAndVerify(email)
         return TestUser(s.familyId, s.accessToken)
     }
 

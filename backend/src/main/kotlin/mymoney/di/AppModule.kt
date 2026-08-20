@@ -17,12 +17,16 @@ import mymoney.data.repository.GoalRepositoryImpl
 import mymoney.data.repository.RefreshTokenRepositoryImpl
 import mymoney.data.repository.TransactionHistoryRepositoryImpl
 import mymoney.data.repository.TransactionRepositoryImpl
+import mymoney.data.repository.EmailVerificationRepositoryImpl
 import mymoney.data.repository.UserRepositoryImpl
+import mymoney.data.notification.LoggingVerificationCodeSender
 import mymoney.data.security.Argon2PasswordHasher
 import mymoney.data.security.JwtTokenService
+import mymoney.data.security.Sha256VerificationCodeService
 import mymoney.domain.repository.AccountRepository
 import mymoney.domain.repository.BudgetRepository
 import mymoney.domain.repository.CategoryRepository
+import mymoney.domain.repository.EmailVerificationRepository
 import mymoney.domain.repository.FamilyInviteRepository
 import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
@@ -36,6 +40,7 @@ import mymoney.domain.repository.TransactionRepository
 import mymoney.domain.repository.UserRepository
 import mymoney.domain.security.PasswordHasher
 import mymoney.domain.security.TokenService
+import mymoney.domain.security.VerificationCodeService
 import mymoney.domain.usecase.account.ArchiveAccountUseCase
 import mymoney.domain.usecase.account.CreateAccountUseCase
 import mymoney.domain.usecase.account.DeleteAccountUseCase
@@ -46,6 +51,10 @@ import mymoney.domain.usecase.auth.LoginUseCase
 import mymoney.domain.usecase.auth.LogoutAllUseCase
 import mymoney.domain.usecase.auth.RefreshTokenUseCase
 import mymoney.domain.usecase.auth.RegisterUserUseCase
+import mymoney.domain.usecase.auth.ResendVerificationCodeUseCase
+import mymoney.domain.usecase.auth.VerificationCodeIssuer
+import mymoney.domain.usecase.auth.VerificationCodeSender
+import mymoney.domain.usecase.auth.VerifyEmailUseCase
 import mymoney.domain.usecase.category.ArchiveCategoryUseCase
 import mymoney.domain.usecase.category.CreateCategoryUseCase
 import mymoney.domain.usecase.category.DeleteCategoryUseCase
@@ -90,7 +99,11 @@ import mymoney.domain.usecase.goal.ListGoalsUseCase
 import mymoney.domain.usecase.goal.UpdateGoalUseCase
 import org.koin.dsl.module
 
-fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
+fun appModule(
+    config: AppConfig,
+    databaseFactory: DatabaseFactory,
+    verificationCodeSender: VerificationCodeSender? = null,
+) = module {
     // Config
     single { config }
     single<DbConfig> { config.db }
@@ -105,6 +118,7 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single<FamilyMemberRepository> { FamilyMemberRepositoryImpl(get()) }
     single<FamilyInviteRepository> { FamilyInviteRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get()) }
+    single<EmailVerificationRepository> { EmailVerificationRepositoryImpl(get()) }
     single<RefreshTokenRepository> { RefreshTokenRepositoryImpl(get()) }
     single<AccountRepository> { AccountRepositoryImpl(get()) }
     single<CategoryRepository> { CategoryRepositoryImpl(get()) }
@@ -119,6 +133,11 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     // Security
     single<PasswordHasher> { Argon2PasswordHasher() }
     single<TokenService> { JwtTokenService(get()) }
+    single<VerificationCodeService> { Sha256VerificationCodeService() }
+
+    // Confirmation-code delivery. Development logs the code instead of sending
+    // mail; wire an SMTP implementation here before going to production.
+    single<VerificationCodeSender> { verificationCodeSender ?: LoggingVerificationCodeSender() }
 
     // Category use cases (declared before auth so RegisterUserUseCase can inject seed)
     single { SeedSystemCategoriesUseCase(get()) }
@@ -130,7 +149,10 @@ fun appModule(config: AppConfig, databaseFactory: DatabaseFactory) = module {
     single { DeleteCategoryUseCase(get()) }
 
     // Auth use cases
-    single { RegisterUserUseCase(get(), get(), get(), get(), get(), get(), get()) }
+    single { VerificationCodeIssuer(get(), get(), get()) }
+    single { RegisterUserUseCase(get(), get(), get(), get(), get(), get()) }
+    single { VerifyEmailUseCase(get(), get(), get(), get(), get(), get()) }
+    single { ResendVerificationCodeUseCase(get(), get()) }
     single { LoginUseCase(get(), get(), get(), get(), get()) }
     single { RefreshTokenUseCase(get(), get(), get()) }
     single { LogoutAllUseCase(get()) }

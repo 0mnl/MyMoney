@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import mymoney.domain.usecase.auth.AuthSession
 import mymoney.domain.usecase.auth.AuthTokens
+import mymoney.domain.usecase.auth.PendingRegistration
 
 @Serializable
 data class RegisterRequest(
@@ -20,6 +21,29 @@ data class LoginRequest(
 @Serializable
 data class RefreshRequest(
     val refreshToken: String,
+)
+
+@Serializable
+data class VerifyEmailRequest(
+    val email: String,
+    val code: String,
+)
+
+@Serializable
+data class ResendCodeRequest(
+    val email: String,
+)
+
+/**
+ * Response of /auth/register and /auth/resend-code. Carries no tokens by
+ * design — see [PendingRegistration]. [resendAvailableAt] drives the countdown
+ * on the confirmation screen.
+ */
+@Serializable
+data class PendingRegistrationResponse(
+    val email: String,
+    val codeExpiresAt: Instant,
+    val resendAvailableAt: Instant,
 )
 
 @Serializable
@@ -47,6 +71,12 @@ fun AuthSession.toResponse() = AuthSessionResponse(
     refreshToken = tokens.refreshToken,
     accessTokenExpiresAt = tokens.accessTokenExpiresAt,
     refreshTokenExpiresAt = tokens.refreshTokenExpiresAt,
+)
+
+fun PendingRegistration.toResponse() = PendingRegistrationResponse(
+    email = email,
+    codeExpiresAt = codeExpiresAt,
+    resendAvailableAt = resendAvailableAt,
 )
 
 fun AuthTokens.toResponse() = AuthTokensResponse(

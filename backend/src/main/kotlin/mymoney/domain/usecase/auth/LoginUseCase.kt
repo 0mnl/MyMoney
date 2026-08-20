@@ -1,12 +1,12 @@
 package mymoney.domain.usecase.auth
 
+import mymoney.domain.errors.ForbiddenException
 import mymoney.domain.errors.UnauthorizedException
 import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.RefreshTokenRepository
 import mymoney.domain.repository.UserRepository
 import mymoney.domain.security.PasswordHasher
 import mymoney.domain.security.TokenService
-import java.util.UUID
 
 class LoginUseCase(
     private val users: UserRepository,
@@ -25,27 +25,25 @@ class LoginUseCase(
             throw UnauthorizedException("Invalid email or password")
         }
 
+        // Checked only after the password matches, so this cannot be used to
+        // probe which addresses are registered. The client routes EMAIL_NOT_VERIFIED
+        // to the confirmation screen instead of showing a login error.
+        if (!lookup.emailVerified) {
+            throw ForbiddenException(
+                msg = "Email is not confirmed",
+                code = "EMAIL_NOT_VERIFIED",
+                details = mapOf("email" to email),
+            )
+        }
+
         val familyId = members.listByUser(lookup.userId).firstOrNull()?.familyId
             ?: throw UnauthorizedException("User has no family membership")
 
-        val access = tokenService.issueAccessToken(lookup.userId, familyId)
-        val refresh = tokenService.issueRefreshToken()
-        refreshTokens.create(
-            id = UUID.randomUUID(),
-            userId = lookup.userId,
-            tokenHash = refresh.hash,
-            expiresAt = refresh.expiresAt,
-        )
-
-        return AuthSession(
+        return issueSession(
             userId = lookup.userId,
             familyId = familyId,
-            tokens = AuthTokens(
-                accessToken = access.token,
-                refreshToken = refresh.plaintext,
-                accessTokenExpiresAt = access.expiresAt,
-                refreshTokenExpiresAt = refresh.expiresAt,
-            ),
+            tokenService = tokenService,
+            refreshTokens = refreshTokens,
         )
     }
 }

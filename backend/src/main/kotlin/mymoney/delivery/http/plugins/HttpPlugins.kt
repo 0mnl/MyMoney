@@ -17,6 +17,7 @@ import mymoney.domain.errors.ConflictException
 import mymoney.domain.errors.DomainException
 import mymoney.domain.errors.ForbiddenException
 import mymoney.domain.errors.NotFoundException
+import mymoney.domain.errors.TooManyRequestsException
 import mymoney.domain.errors.UnauthorizedException
 import mymoney.domain.errors.ValidationException
 import org.slf4j.event.Level
@@ -58,6 +59,7 @@ fun Application.configureHttp() {
                 is ConflictException -> HttpStatusCode.Conflict
                 is UnauthorizedException -> HttpStatusCode.Unauthorized
                 is ForbiddenException -> HttpStatusCode.Forbidden
+                is TooManyRequestsException -> HttpStatusCode.TooManyRequests
             }
             call.respond(
                 status,

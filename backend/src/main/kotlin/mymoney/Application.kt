@@ -33,6 +33,9 @@ import mymoney.domain.usecase.auth.LoginUseCase
 import mymoney.domain.usecase.auth.LogoutAllUseCase
 import mymoney.domain.usecase.auth.RefreshTokenUseCase
 import mymoney.domain.usecase.auth.RegisterUserUseCase
+import mymoney.domain.usecase.auth.ResendVerificationCodeUseCase
+import mymoney.domain.usecase.auth.VerificationCodeSender
+import mymoney.domain.usecase.auth.VerifyEmailUseCase
 import mymoney.domain.usecase.category.ArchiveCategoryUseCase
 import mymoney.domain.usecase.category.CreateCategoryUseCase
 import mymoney.domain.usecase.category.DeleteCategoryUseCase
@@ -79,7 +82,19 @@ import org.koin.logger.slf4jLogger
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
-fun Application.module() {
+/**
+ * Entry point named by application.conf. Kept as the only `module` so Ktor's
+ * reflective lookup has nothing to disambiguate.
+ */
+fun Application.module() = configureApplication(verificationCodeSender = null)
+
+/**
+ * [verificationCodeSender] overrides how confirmation codes are delivered.
+ * Null keeps the environment's default (a log line in development). Integration
+ * tests pass a capturing implementation so they can read the code they were
+ * "sent" and complete the registration flow.
+ */
+fun Application.configureApplication(verificationCodeSender: VerificationCodeSender?) {
     val config = loadAppConfig(environment.config)
     log.info("Starting MyMoney backend, env={}, jdbc={}", config.env, config.db.url)
 
@@ -88,13 +103,15 @@ fun Application.module() {
 
     install(Koin) {
         slf4jLogger()
-        modules(appModule(config, databaseFactory))
+        modules(appModule(config, databaseFactory, verificationCodeSender))
     }
 
     configureHttp()
     configureAuth(config.jwt)
 
     val register by inject<RegisterUserUseCase>()
+    val verifyEmail by inject<VerifyEmailUseCase>()
+    val resendCode by inject<ResendVerificationCodeUseCase>()
     val login by inject<LoginUseCase>()
     val refresh by inject<RefreshTokenUseCase>()
     val logoutAll by inject<LogoutAllUseCase>()
@@ -157,7 +174,7 @@ fun Application.module() {
     routing {
         healthRoutes(databaseFactory.database)
         route("/v1") {
-            authRoutes(register, login, refresh, logoutAll)
+            authRoutes(register, verifyEmail, resendCode, login, refresh, logoutAll)
             accountRoutes(
                 create = createAccount,
                 list = listAccounts,

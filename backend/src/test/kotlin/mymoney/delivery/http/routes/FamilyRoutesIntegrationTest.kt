@@ -23,8 +23,10 @@ import mymoney.delivery.http.dto.InviteResponse
 import mymoney.delivery.http.dto.LoginRequest
 import mymoney.delivery.http.dto.RefreshRequest
 import mymoney.delivery.http.dto.RegisterRequest
-import mymoney.module
+import mymoney.configureApplication
+import mymoney.test.CapturingVerificationCodeSender
 import mymoney.test.TestPostgres
+import mymoney.test.registerAndVerify
 import mymoney.test.testAppConfig
 import java.util.UUID
 import kotlin.test.Test
@@ -38,17 +40,14 @@ class FamilyRoutesIntegrationTest {
 
     private fun ApplicationTestBuilder.setup() {
         environment { config = testAppConfig(TestPostgres.container) }
-        application { module() }
+        application { configureApplication(CapturingVerificationCodeSender) }
     }
 
     private suspend inline fun <reified T> HttpResponse.decode(): T =
         json.decodeFromString<T>(bodyAsText())
 
     private suspend fun ApplicationTestBuilder.register(email: String, password: String = "password123") =
-        client.post("/v1/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, password)))
-        }.decode<AuthSessionResponse>()
+        registerAndVerify(email, password)
 
     private suspend fun ApplicationTestBuilder.login(email: String, password: String = "password123") =
         client.post("/v1/auth/login") {

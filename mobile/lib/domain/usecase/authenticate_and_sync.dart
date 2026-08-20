@@ -29,8 +29,20 @@ class AuthenticateAndSyncUseCase {
   final SharedPreferences prefs;
   final SyncManager syncManager;
 
-  Future<AuthSnapshot> register(String email, String password) async {
-    final result = await authApi.register(email, password);
+  /// Creates the account and asks the backend to mail a confirmation code.
+  /// Returns no session — the account is unusable until [verifyEmail] runs.
+  Future<PendingRegistration> register(String email, String password) {
+    return authApi.register(email, password);
+  }
+
+  Future<PendingRegistration> resendCode(String email) {
+    return authApi.resendCode(email);
+  }
+
+  /// Trades the emailed code for a session. This is the registration path's
+  /// only entry point into an authenticated app.
+  Future<AuthSnapshot> verifyEmail(String email, String code) async {
+    final result = await authApi.verifyEmail(email, code);
     return _acceptSession(result);
   }
 

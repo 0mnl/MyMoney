@@ -18,8 +18,16 @@ class NotFoundException(entity: String, id: String) :
         details = mapOf("entity" to entity, "id" to id),
     )
 
-class ValidationException(msg: String, details: Map<String, String> = emptyMap()) :
-    DomainException("VALIDATION_FAILED", msg, details)
+/**
+ * [code] defaults to VALIDATION_FAILED but can be overridden when the client
+ * needs to branch on the specific failure (e.g. INVALID_CODE vs CODE_EXPIRED
+ * on the email-confirmation screen).
+ */
+class ValidationException(
+    msg: String,
+    details: Map<String, String> = emptyMap(),
+    code: String = "VALIDATION_FAILED",
+) : DomainException(code, msg, details)
 
 class ConflictException(code: String, msg: String, details: Map<String, String> = emptyMap()) :
     DomainException(code, msg, details)
@@ -27,5 +35,15 @@ class ConflictException(code: String, msg: String, details: Map<String, String> 
 class UnauthorizedException(msg: String = "Unauthorized") :
     DomainException("UNAUTHORIZED", msg)
 
-class ForbiddenException(msg: String = "Forbidden") :
-    DomainException("FORBIDDEN", msg)
+class ForbiddenException(
+    msg: String = "Forbidden",
+    code: String = "FORBIDDEN",
+    details: Map<String, String> = emptyMap(),
+) : DomainException(code, msg, details)
+
+/** Throttling — resend-code cooldown, brute-force protection on codes. */
+class TooManyRequestsException(
+    msg: String,
+    code: String = "TOO_MANY_REQUESTS",
+    details: Map<String, String> = emptyMap(),
+) : DomainException(code, msg, details)

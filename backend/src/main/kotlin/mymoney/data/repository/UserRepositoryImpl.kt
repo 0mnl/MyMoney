@@ -1,6 +1,7 @@
 package mymoney.data.repository
 
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import mymoney.data.db.dbQuery
 import mymoney.data.db.tables.AppUserTable
 import mymoney.domain.errors.NotFoundException
@@ -21,6 +22,7 @@ class UserRepositoryImpl(private val db: Database) : UserRepository {
             it[id] = user.id
             it[email] = user.email
             it[AppUserTable.passwordHash] = passwordHash
+            it[emailVerified] = false
             it[createdAt] = user.createdAt
             it[updatedAt] = user.updatedAt
         }
@@ -49,8 +51,25 @@ class UserRepositoryImpl(private val db: Database) : UserRepository {
                 PasswordLookup(
                     userId = it[AppUserTable.id],
                     passwordHash = it[AppUserTable.passwordHash],
+                    emailVerified = it[AppUserTable.emailVerified],
                 )
             }
+    }
+
+    override suspend fun isEmailVerified(userId: UUID): Boolean = dbQuery(db) {
+        AppUserTable.selectAll()
+            .where { AppUserTable.id eq userId }
+            .singleOrNull()
+            ?.get(AppUserTable.emailVerified)
+            ?: throw NotFoundException("user", userId.toString())
+    }
+
+    override suspend fun markEmailVerified(userId: UUID, at: Instant): Unit = dbQuery(db) {
+        val updated = AppUserTable.update({ AppUserTable.id eq userId }) {
+            it[emailVerified] = true
+            it[updatedAt] = at
+        }
+        if (updated == 0) throw NotFoundException("user", userId.toString())
     }
 
     override suspend fun updatePasswordHash(userId: UUID, newHash: String): Unit = dbQuery(db) {

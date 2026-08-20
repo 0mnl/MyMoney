@@ -1,5 +1,6 @@
 package mymoney.domain.repository
 
+import kotlinx.datetime.Instant
 import mymoney.domain.model.User
 import java.util.UUID
 
@@ -20,9 +21,15 @@ interface UserRepository {
     suspend fun findPasswordHashByEmail(email: String): PasswordLookup?
 
     suspend fun updatePasswordHash(userId: UUID, newHash: String)
+
+    /** True once the user has exchanged an emailed code for a session. */
+    suspend fun isEmailVerified(userId: UUID): Boolean
+
+    suspend fun markEmailVerified(userId: UUID, at: Instant)
 }
 
 data class PasswordLookup(
     val userId: UUID,
     val passwordHash: String,
+    val emailVerified: Boolean,
 )

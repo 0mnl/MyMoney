@@ -10,6 +10,8 @@ import io.ktor.server.routing.route
 import mymoney.delivery.http.dto.LoginRequest
 import mymoney.delivery.http.dto.RefreshRequest
 import mymoney.delivery.http.dto.RegisterRequest
+import mymoney.delivery.http.dto.ResendCodeRequest
+import mymoney.delivery.http.dto.VerifyEmailRequest
 import mymoney.delivery.http.dto.toResponse
 import mymoney.delivery.http.security.AUTH_ACCESS
 import mymoney.delivery.http.security.userContext
@@ -17,18 +19,36 @@ import mymoney.domain.usecase.auth.LoginUseCase
 import mymoney.domain.usecase.auth.LogoutAllUseCase
 import mymoney.domain.usecase.auth.RefreshTokenUseCase
 import mymoney.domain.usecase.auth.RegisterUserUseCase
+import mymoney.domain.usecase.auth.ResendVerificationCodeUseCase
+import mymoney.domain.usecase.auth.VerifyEmailUseCase
 
 fun Route.authRoutes(
     register: RegisterUserUseCase,
+    verifyEmail: VerifyEmailUseCase,
+    resendCode: ResendVerificationCodeUseCase,
     login: LoginUseCase,
     refresh: RefreshTokenUseCase,
     logoutAll: LogoutAllUseCase,
 ) {
     route("/auth") {
+        // Creates the account and mails a code. Returns 202 with no tokens —
+        // the client must call /auth/verify-email to obtain a session.
         post("/register") {
             val body = call.receive<RegisterRequest>()
-            val session = register.execute(body.email, body.password)
+            val pending = register.execute(body.email, body.password)
+            call.respond(HttpStatusCode.Accepted, pending.toResponse())
+        }
+
+        post("/verify-email") {
+            val body = call.receive<VerifyEmailRequest>()
+            val session = verifyEmail.execute(body.email, body.code)
             call.respond(HttpStatusCode.OK, session.toResponse())
+        }
+
+        post("/resend-code") {
+            val body = call.receive<ResendCodeRequest>()
+            val pending = resendCode.execute(body.email)
+            call.respond(HttpStatusCode.Accepted, pending.toResponse())
         }
 
         post("/login") {

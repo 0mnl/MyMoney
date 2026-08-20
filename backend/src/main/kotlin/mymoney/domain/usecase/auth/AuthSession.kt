@@ -3,7 +3,18 @@ package mymoney.domain.usecase.auth
 import kotlinx.datetime.Instant
 import java.util.UUID
 
-/** Successful outcome of register / login. */
+/**
+ * Outcome of /auth/register. Deliberately carries no tokens: the account exists
+ * but stays unusable until the emailed code is confirmed, at which point
+ * [VerifyEmailUseCase] returns a real [AuthSession].
+ */
+data class PendingRegistration(
+    val email: String,
+    val codeExpiresAt: Instant,
+    val resendAvailableAt: Instant,
+)
+
+/** Successful outcome of login / email confirmation. */
 data class AuthSession(
     val userId: UUID,
     val familyId: UUID,

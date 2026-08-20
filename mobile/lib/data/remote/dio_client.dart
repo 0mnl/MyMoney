@@ -64,6 +64,8 @@ class ApiClient {
   bool _isAuthEndpoint(String path) =>
       path.startsWith('/v1/auth/login') ||
       path.startsWith('/v1/auth/register') ||
+      path.startsWith('/v1/auth/verify-email') ||
+      path.startsWith('/v1/auth/resend-code') ||
       path.startsWith('/v1/auth/refresh');
 
   Future<bool> _attemptRefresh() async {

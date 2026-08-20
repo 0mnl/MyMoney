@@ -22,8 +22,10 @@ import mymoney.delivery.http.dto.SyncBundleDto
 import mymoney.delivery.http.dto.SyncPullResponse
 import mymoney.delivery.http.dto.SyncPushRequest
 import mymoney.delivery.http.dto.SyncPushResponse
-import mymoney.module
+import mymoney.configureApplication
+import mymoney.test.CapturingVerificationCodeSender
 import mymoney.test.TestPostgres
+import mymoney.test.registerAndVerify
 import mymoney.test.testAppConfig
 import java.util.UUID
 import kotlin.test.Test
@@ -36,17 +38,14 @@ class SyncRoutesIntegrationTest {
 
     private fun ApplicationTestBuilder.setup() {
         environment { config = testAppConfig(TestPostgres.container) }
-        application { module() }
+        application { configureApplication(CapturingVerificationCodeSender) }
     }
 
     private suspend inline fun <reified T> HttpResponse.decode(): T =
         json.decodeFromString<T>(bodyAsText())
 
     private suspend fun ApplicationTestBuilder.register(email: String) =
-        client.post("/v1/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest(email, "password123")))
-        }.decode<AuthSessionResponse>()
+        registerAndVerify(email)
 
     private fun newEmail(prefix: String) = "$prefix-${UUID.randomUUID()}@example.com"
 
