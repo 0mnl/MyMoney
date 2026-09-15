@@ -1,5 +1,5 @@
 # Universal compose file. По умолчанию поднимает только Postgres — этого
-# достаточно для локальной разработки (bacend запускается из IDE/gradle).
+# достаточно для локальной разработки (backend запускается из IDE/gradle).
 # Для полноценной прод-подобной сборки (backend в контейнере):
 #     docker compose --profile prod up -d
 services:
@@ -11,8 +11,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mymoney}
       POSTGRES_USER: ${POSTGRES_USER:-mymoney}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mymoney_dev_password}
+    # Слушаем только loopback. Раньше здесь было "5432:5432", то есть база
+    # висела на всех интерфейсах — а Docker публикует порты правилами в
+    # цепочке DOCKER, которую iptables проходит ДО правил UFW. То есть
+    # `ufw deny 5432` такую публикацию не закрывает, и на сервере с белым IP
+    # база оказалась бы доступна из интернета.
+    #
+    # Бэкенду в prod-профиле этот порт не нужен вовсе: он ходит к postgres
+    # по внутренней сети compose. Публикация остаётся только ради
+    # psql/pg_dump с самого сервера и SSH-туннеля.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -20,6 +29,11 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   backend:
     build:
@@ -44,14 +58,44 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-mymoney-mobile}
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
+      # Без почты APP_ENV=production не стартует вовсе: коды подтверждения
+      # ушли бы только в лог, и ни один пользователь не завершил бы
+      # регистрацию. Раньше эти переменные сюда не прокидывались, и
+      # prod-профиль падал на старте с требованием MAIL_HOST.
+      #
+      # Требование намеренно оставлено бэкенду, а не записано здесь как
+      # ${MAIL_HOST:?...}: compose подставляет переменные во ВСЕ сервисы файла,
+      # даже в те, чей профиль не активирован, и такой строкой сломался бы
+      # `docker compose up -d postgres` в разработке, где почты нет.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@mymoney.local}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-MyMoney}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
+      MAIL_SSL: ${MAIL_SSL:-false}
+      # Пусто = регистрация открыта всем, кто дотянется до сервера.
+      REGISTRATION_ALLOWLIST: ${REGISTRATION_ALLOWLIST:-}
+      HTTP_ALLOWED_ORIGINS: ${HTTP_ALLOWED_ORIGINS:-}
+    # Только loopback: наружу порт отдаёт nginx, он же терминирует TLS и
+    # режет частоту запросов. Контейнер, опубликованный на 0.0.0.0, обошёл бы
+    # и TLS, и rate-limit — к нему можно было бы обратиться по http://IP:8080.
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
+    # Без лимита json-file растёт до размера диска. На сервере, где логи
+    # пишутся месяцами, это самый частый способ внезапно остаться без места.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   postgres-data:

@@ -1,8 +1,13 @@
 # Как запустить MyMoney (после Этапа 4)
 
-Этот документ — практическое руководство: что установить на ПК, как поднять
-бэкенд, как собрать и запустить приложение на Android-смартфоне (§ 1–4) и
-на iOS — симулятор или реальный iPhone (§ 4A, нужен Mac с Xcode).
+Этот документ — практическое руководство: что установить, как поднять
+бэкенд (§ 1–2, macOS / Linux / Windows), как собрать и запустить приложение
+на Android-смартфоне (§ 3–4) и на iOS — симулятор или реальный iPhone
+(§ 4A, нужен Mac с Xcode).
+
+> **Нужен только бэкенд?** Установите Docker и JDK 17 (§ 1), затем из корня
+> проекта: `./scripts/run-backend.sh` (macOS / Linux) или
+> `.\scripts\run-backend.ps1` (Windows). Подробности — § 2.
 
 > **Что уже работает.**
 > - Этапы 1–3 — офлайновая работа приложения (счета, категории, операции,
@@ -14,123 +19,392 @@
 
 ---
 
-## 1. Что установить на ПК (Windows 11)
+## 1. Что установить
+
+Бэкенду нужны только **Docker** и **JDK 17+**. Flutter и Android Studio нужны
+для мобильного приложения (§ 3–4), для запуска сервера они не требуются.
 
 | Инструмент | Версия | Для чего |
 |---|---|---|
-| **Docker Desktop** | последняя | Локальный PostgreSQL для бэкенда |
-| **JDK 17+** (Temurin/Corretto) | 17 или новее | Компиляция и запуск Ktor-сервера |
-| **Flutter SDK** | 3.24+ | Сборка мобильного приложения |
-| **Android Studio** | последняя | Android SDK, эмулятор, платформенные инструменты |
-| **Git** | любая | Уже установлен, репозиторий локальный |
+| **Docker** | последняя | Локальный PostgreSQL для бэкенда |
+| **JDK 17+** (Temurin/Homebrew) | ровно 17 или новее | Компиляция и запуск Ktor-сервера |
+| **Flutter SDK** | 3.24+ | Только для мобильного приложения |
+| **Android Studio** | последняя | Только для Android: SDK, эмулятор, adb |
+| **Xcode** | последняя | Только для iOS (нужен Mac) |
 
-Проверка после установки (PowerShell):
+### macOS
+
+```bash
+brew install --cask docker      # затем один раз запустить Docker.app
+brew install openjdk@17
+brew install --cask flutter     # только если собираете мобильное приложение
+```
+
+Homebrew не кладёт `java` в PATH автоматически. Проверьте и при
+необходимости добавьте в `~/.zshrc`:
+
+```bash
+sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk \
+             /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+```
+
+### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt install openjdk-17-jdk docker.io docker-compose-plugin
+sudo usermod -aG docker "$USER"     # чтобы docker работал без sudo; нужен релогин
+```
+
+### Windows
 
 ```powershell
+winget install Docker.DockerDesktop
+winget install EclipseAdoptium.Temurin.17.JDK
+```
+
+### Проверка
+
+```bash
 docker --version
-java -version                 
-flutter --version
-flutter doctor -v             # покажет чего не хватает
+docker info          # должен отработать без ошибок — значит демон запущен
+java -version        # должно быть 17 или новее
 ```
 
-`flutter doctor` может ругаться на «Android toolchain — license status
-unknown». Принять лицензии:
-
-```powershell
-flutter doctor --android-licenses
-```
+`java -version` показывает 1.8 или 11 при установленном 17? Значит в PATH
+чужая Java. На macOS: `export JAVA_HOME="$(/usr/libexec/java_home -v 17)"`.
 
 ---
 
-## 2. Запуск бэкенда на ПК (по желанию)
+## 2. Запуск бэкенда
 
-### 2.1. Поднять Postgres в Docker
+Есть два пути: скрипт (одна команда, сам проверит окружение) и руками
+(понятно, что именно происходит). Начните со скрипта; ручной путь — § 2.3.
 
-Из корня проекта (`C:\Users\nika2\OneDrive\Desktop\MyMoney`):
+### 2.1. Быстрый путь: скрипт
 
-```powershell
-# Скопировать пример env — переменные будут прочитаны docker-compose и сервером
-Copy-Item .env.example .env
-
-# Поднять Postgres в фоне
-docker compose up -d postgres
-
-# Проверить, что контейнер здоров
-docker compose ps
+```bash
+# macOS / Linux — из корня проекта
+./scripts/run-backend.sh
 ```
 
-Postgres поднимется на `localhost:5432`, база `mymoney`, пользователь
-`mymoney`, пароль `mymoney_dev_password` (значения из `.env`).
+```powershell
+# Windows
+.\scripts\run-backend.ps1
+```
 
-### 2.2. Собрать и запустить Ktor-сервер
+Скрипт делает всё сам: читает `.env` (создаёт с dev-дефолтами, если его нет),
+проверяет JDK 17+ и запущенный Docker, поднимает Postgres, ждёт, пока
+контейнер станет `healthy`, экспортирует переменные окружения и стартует
+сервер. Первый запуск качает Gradle и зависимости — 3–5 минут; дальше секунды.
+
+Готово, когда в логе появится:
+
+```
+Application started in 1.276 seconds.
+Responding at http://0.0.0.0:8080
+```
+
+**Команды скрипта** (одинаковые в обеих версиях):
+
+| Команда | Что делает |
+|---|---|
+| `start` *(по умолчанию)* | Postgres + сервер через Gradle. Ctrl+C останавливает сервер, Postgres продолжает работать |
+| `jar` | Собрать fat jar и запустить его — ближе к тому, что уезжает в production |
+| `db` | Только Postgres; сервер запускаете из IDE |
+| `stop` | Остановить сервер и контейнер |
+| `restart` | `stop` + `start` |
+| `status` | Состояние Postgres, сервера и ответ `/healthz` |
+| `test` | Тесты бэкенда (Testcontainers, нужен Docker) |
+| `logs` | Хвост лога фонового сервера |
+| `psql` | `psql` внутри контейнера |
+
+**Опции:** `-p 9090` (другой порт), `-d` / `-Detach` (в фон, лог в
+`backend/build/backend.log`), `--no-db` / `-NoDb` (не трогать Docker),
+`--clean` / `-Clean`, `--offline` / `-Offline`, `--help`.
+
+```bash
+./scripts/run-backend.sh start -d     # в фоне — терминал остаётся свободным
+./scripts/run-backend.sh status       # что сейчас работает
+./scripts/run-backend.sh logs         # смотреть лог
+./scripts/run-backend.sh stop         # выключить всё
+```
+
+Если PowerShell отказывается запускать скрипт («выполнение сценариев
+отключено»):
 
 ```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+# или разово:
+powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
+```
+
+### 2.2. Ловушка: локальный Postgres перехватывает порт
+
+Самая коварная проблема на машине разработчика, и скрипт её специально ловит.
+
+Если у вас установлен **нативный** PostgreSQL (Homebrew, `apt`, установщик
+EDB), он слушает конкретно `127.0.0.1:5432` и `[::1]:5432`. Контейнер же
+публикует порт на wildcard `*:5432`. Более специфичная привязка выигрывает,
+поэтому `localhost:5432` уходит **в нативный Postgres**, а контейнер остаётся
+недостижимым.
+
+Коварство в том, что `docker compose ps` показывает контейнер `healthy`
+(`pg_isready` не проверяет учётку), а бэкенд падает с сообщением, которое
+уводит в другую сторону:
+
+```
+HikariPool$PoolInitializationException: Failed to initialize pool:
+FATAL: role "mymoney" does not exist
+```
+
+Роль есть — просто вы стучитесь не в ту базу. Два выхода:
+
+```bash
+# 1) Развести по портам — ничего не ломает (в .env):
+#    POSTGRES_PORT=5434
+#    DB_URL=jdbc:postgresql://localhost:5434/mymoney
+docker compose up -d --force-recreate postgres
+
+# 2) Погасить локальный Postgres:
+brew services stop postgresql@18    # macOS
+sudo systemctl stop postgresql      # Linux
+```
+
+Проверить, кто на самом деле слушает порт:
+
+```bash
+lsof -nP -iTCP:5432 -sTCP:LISTEN    # macOS / Linux
+```
+
+Строка с `postgres` и адресом `127.0.0.1` — это нативный сервер;
+`com.docke` или `docker-proxy` — контейнер.
+
+> На **этой машине** уже применён вариант 1: в `.env` стоит
+> `POSTGRES_PORT=5434`, потому что 5432 занят Homebrew `postgresql@18`,
+> а 5433 — контейнером другого проекта.
+
+### 2.3. Ручной путь: те же шаги без скрипта
+
+Полезно, если скрипт падает или нужно понять, что именно происходит.
+
+**Шаг 1 — переменные окружения.** `.env` не в git (в нём секреты). Если его
+нет, создайте — рабочий набор dev-значений есть в § 2.4. Он читается и
+`docker-compose`, и — после экспорта — сервером.
+
+**Шаг 2 — поднять Postgres.** Из корня проекта:
+
+```bash
+docker compose up -d postgres
+docker compose ps                    # ждём STATUS = healthy
+```
+
+Поднимется `localhost:${POSTGRES_PORT}`, база `mymoney`, пользователь
+`mymoney`, пароль `mymoney_dev_password`. Данные лежат в volume
+`mymoney-postgres-data` и переживают перезапуск контейнера.
+
+**Шаг 3 — экспортировать переменные и запустить сервер.** Ktor читает
+`application.conf`, где каждое значение переопределяется переменной
+окружения (`${?DB_URL}` и т.д.). Без экспорта возьмутся дефолты из конфига —
+а там порт 5432, что на этой машине неверно.
+
+```bash
+# macOS / Linux
+set -a; . ./.env; set +a
+cd backend
+chmod +x ./gradlew      # на свежем клоне бит +x часто теряется
+./gradlew run
+```
+
+```powershell
+# Windows
+Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
+    $k, $v = $_ -split '=', 2
+    [Environment]::SetEnvironmentVariable($k.Trim(), $v, 'Process')
+}
 cd backend
 .\gradlew.bat run
 ```
 
-Первый запуск скачает Gradle wrapper и все зависимости — займёт 3–5 минут.
-Далее сервер стартует за секунды.
+Миграции применять отдельно не нужно: Flyway прогоняет
+`V1__initial_schema.sql` … `V3__email_verification.sql` при старте
+приложения и заодно засевает системные категории.
 
-Если увидите в логах:
+**Альтернатива — fat jar** (стартует быстрее, не держит Gradle-демон):
+
+```bash
+cd backend && ./gradlew buildFatJar
+java -jar build/libs/mymoney-backend.jar
 ```
-Application started in ... seconds.
-Responding at http://0.0.0.0:8080
+
+**Альтернатива — всё в Docker** (бэкенд тоже в контейнере, нужен `JWT_SECRET`):
+
+```bash
+JWT_SECRET="$(openssl rand -base64 48)" docker compose --profile prod up -d
 ```
-— всё ок. При старте Flyway применяет `V1__initial_schema.sql`
-автоматически (создаст все таблицы).
 
-### 2.3. Проверить, что бэкенд отвечает
+**Остановка.** `Ctrl+C` в окне Gradle + `docker compose stop postgres`.
 
-Новое окно PowerShell:
+> ⚠️ `Ctrl+C` не всегда убивает сервер. `./gradlew run` запускает приложение
+> потомком **Gradle-демона**, а не своим, поэтому JVM с сервером может
+> пережить остановку Gradle и продолжить держать порт 8080. Проверка и
+> зачистка:
+>
+> ```bash
+> lsof -nP -iTCP:8080 -sTCP:LISTEN
+> kill <PID>
+> ```
+>
+> `scripts/run-backend.sh stop` делает это автоматически — и убивает только
+> процесс, в командной строке которого есть `mymoney.ApplicationKt` или
+> `mymoney-backend.jar`, чтобы не задеть чужое приложение на том же порту.
 
-```powershell
+### 2.4. Что лежит в `.env`
+
+```bash
+# === Postgres (читается docker-compose и бэкендом) ===
+POSTGRES_DB=mymoney
+POSTGRES_USER=mymoney
+POSTGRES_PASSWORD=mymoney_dev_password
+POSTGRES_PORT=5434          # 5432, если нет конфликта с локальным Postgres
+
+# === Backend ===
+APP_ENV=development
+PORT=8080
+BACKEND_PORT=8080
+DB_URL=jdbc:postgresql://localhost:5434/mymoney   # порт обязан совпадать с POSTGRES_PORT
+DB_USER=mymoney
+DB_PASSWORD=mymoney_dev_password
+DB_POOL_SIZE=10
+
+# === JWT ===
+JWT_SECRET=dev-only-change-me-in-production
+JWT_ISSUER=mymoney
+JWT_AUDIENCE=mymoney-mobile
+JWT_ACCESS_TTL_MINUTES=15
+JWT_REFRESH_TTL_DAYS=30
+
+# === Почта ===
+# Пусто — коды пишутся в лог. Заполните, чтобы включить SMTP.
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM=no-reply@mymoney.local
+MAIL_STARTTLS=true
+MAIL_SSL=false
+```
+
+### Почта: коды подтверждения
+
+Регистрация требует кода из письма. Есть два режима, переключает `MAIL_HOST`:
+
+| `MAIL_HOST` | Что происходит |
+|---|---|
+| пусто *(по умолчанию)* | `LoggingVerificationCodeSender` — код пишется в лог, письма нет. Для dev достаточно |
+| задан | `SmtpVerificationCodeSender` — реальная отправка по SMTP |
+
+В `APP_ENV=production` почта **обязательна**: без `MAIL_HOST` сервер откажется
+стартовать. Иначе код подтверждения уходил бы только в лог, и ни один
+пользователь не смог бы завершить регистрацию.
+
+```bash
+MAIL_HOST=smtp.yandex.ru
+MAIL_PORT=587
+MAIL_USERNAME=no-reply@example.com
+MAIL_PASSWORD=<пароль приложения>
+MAIL_FROM=no-reply@example.com
+MAIL_STARTTLS=true      # порт 587
+MAIL_SSL=false          # для implicit TLS на 465: STARTTLS=false, SSL=true
+```
+
+Письмо уходит в двух частях (`text/plain` + `text/html`), STARTTLS
+обязателен (`starttls.required`), таймауты — 10 секунд.
+
+Два подводных камня:
+
+- **`POSTGRES_PORT` и порт в `DB_URL` должны совпадать.** Меняете один —
+  меняйте оба. Скрипт предупредит о расхождении, `docker compose` — нет.
+- **`APP_ENV=production` включает fail-safe** (`AppConfig.kt`): сервер
+  откажется стартовать, если `JWT_SECRET` остался дефолтным или короче
+  32 символов, либо если `DB_PASSWORD` дефолтный. Для прода:
+  `openssl rand -base64 48`.
+
+`POSTGRES_USER` / `POSTGRES_PASSWORD` применяются **только при первой
+инициализации** пустого volume. Поменяли их у уже созданной базы — контейнер
+запустится со старой учёткой, а бэкенд упадёт на `role does not exist`.
+Пересоздать (**удалит все данные в базе**):
+
+```bash
+docker compose down && docker volume rm mymoney-postgres-data
+```
+
+### 2.5. Проверить, что бэкенд отвечает
+
+```bash
 # Health-check
-curl.exe http://localhost:8080/healthz
-# Ожидаемый ответ: {"status":"ok","db":"up"}
+curl -s http://localhost:8080/healthz
+# {"status":"ok","db":"up"}
+```
 
+`"db":"down"` — сервер жив, но не видит базу: смотрите § 2.2.
+
+Полный поток регистрации (macOS / Linux):
+
+```bash
 # Шаг 1. Регистрация — токенов НЕ выдаёт, только высылает 6-значный код
-curl.exe -X POST http://localhost:8080/v1/auth/register `
-  -H "Content-Type: application/json" `
-  -d '{\"email\":\"me@example.com\",\"password\":\"password123\"}'
+curl -s -X POST http://localhost:8080/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"me@example.com","password":"password123"}'
 # 202 Accepted: {"email":..., "codeExpiresAt":..., "resendAvailableAt":...}
 
-# Шаг 2. Взять код из лога бэкенда. В development почта не отправляется —
+# Шаг 2. Код взять из лога бэкенда. В development почта не отправляется —
 # LoggingVerificationCodeSender пишет строку вида:
 #   [DEV] Email confirmation code for me@example.com is 123456 (valid until ...)
+# Если сервер запущен в фоне скриптом:
+grep "code for me@example.com" backend/build/backend.log | tail -1
 # Настроить реальную отправку — заменить биндинг VerificationCodeSender
 # в mymoney/di/AppModule.kt на SMTP-реализацию.
 
 # Шаг 3. Подтверждение — вот здесь выдаются токены
-curl.exe -X POST http://localhost:8080/v1/auth/verify-email `
-  -H "Content-Type: application/json" `
-  -d '{\"email\":\"me@example.com\",\"code\":\"123456\"}'
+curl -s -X POST http://localhost:8080/v1/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"email":"me@example.com","code":"123456"}'
 # Вернёт accessToken, refreshToken, userId, familyId
 
 # Код потерялся? Повторная отправка (не чаще раза в минуту):
-curl.exe -X POST http://localhost:8080/v1/auth/resend-code `
-  -H "Content-Type: application/json" `
-  -d '{\"email\":\"me@example.com\"}'
+curl -s -X POST http://localhost:8080/v1/auth/resend-code \
+  -H "Content-Type: application/json" \
+  -d '{"email":"me@example.com"}'
 
-# Список системных категорий (используйте accessToken из шага выше)
-$TOKEN = "<вставь accessToken>"
-curl.exe http://localhost:8080/v1/categories -H "Authorization: Bearer $TOKEN"
+# Список системных категорий (accessToken из шага 3)
+TOKEN="<вставь accessToken>"
+curl -s http://localhost:8080/v1/categories -H "Authorization: Bearer $TOKEN"
 ```
 
-### 2.4. Прогнать автотесты бэкенда
-
-Docker должен быть запущен — Testcontainers поднимет отдельный Postgres.
+То же на Windows — через `curl.exe`, с экранированием кавычек в теле:
 
 ```powershell
-cd backend
-.\gradlew.bat test
+curl.exe -X POST http://localhost:8080/v1/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{\"email\":\"me@example.com\",\"password\":\"password123\"}'
 ```
 
-Все тесты — юнит + интеграция для auth, accounts, categories, transactions
-— пройдут ~30–60 секунд.
+Успешный ответ `/v1/categories` со списком системных категорий означает, что
+работает вся цепочка: Postgres → Flyway → Koin → JWT → авторизованный роут.
 
-Остановить сервер: `Ctrl+C` в окне, где запущен Gradle.
-Остановить Postgres: `docker compose down` (данные сохранятся в volume).
+### 2.6. Прогнать автотесты бэкенда
+
+Docker должен быть запущен — Testcontainers поднимет **отдельный** Postgres
+на случайном порту, ваш dev-контейнер не трогает.
+
+```bash
+./scripts/run-backend.sh test
+# или руками:
+cd backend && ./gradlew test
+```
+
+Юнит + интеграция для auth, accounts, categories, transactions — ~30–60 секунд.
 
 ---
 
@@ -525,8 +799,16 @@ flutter build ios --release --no-codesign
 
 | Симптом | Решение |
 |---|---|
-| `docker compose` ругается на порт `5432` | Локальный Postgres уже занят порт — остановить его или изменить `POSTGRES_PORT` в `.env` |
+| `docker compose` ругается на порт `5432` | Порт уже занят — сменить `POSTGRES_PORT` в `.env` (и порт в `DB_URL`!) или погасить того, кто занял |
+| **`FATAL: role "mymoney" does not exist`, хотя контейнер `healthy`** | Классика: `localhost:5432` уходит в нативный Postgres мимо контейнера. Полный разбор — § 2.2 |
+| `{"status":"ok","db":"down"}` от `/healthz` | Сервер жив, базу не видит. Проверить `docker compose ps` и совпадение порта в `DB_URL` с `POSTGRES_PORT` |
+| «Порт 8080 занят», хотя Gradle остановлен | Сервер — потомок Gradle-демона и пережил Ctrl+C. `./scripts/run-backend.sh stop` или `lsof -nP -iTCP:8080 -sTCP:LISTEN` + `kill` |
+| `zsh: permission denied: ./gradlew` | `chmod +x backend/gradlew` (бит `+x` теряется при клонировании) |
+| `JAVA_HOME is not set` / собирается не той Java | macOS: `export JAVA_HOME="$(/usr/libexec/java_home -v 17)"` |
+| `Cannot connect to the Docker daemon` | Docker установлен, но не запущен. macOS: открыть Docker.app и дождаться зелёного индикатора |
+| PowerShell: «выполнение сценариев отключено» | `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` |
 | Первый `./gradlew run` очень долгий | Нормально, скачиваются Kotlin/Ktor/Exposed |
+| Поменяли `POSTGRES_USER`/`PASSWORD`, база не пускает | Учётка создаётся только при первой инициализации volume. Пересоздать: `docker compose down && docker volume rm mymoney-postgres-data` (**удалит данные**) |
 | Backend не стартует, ругается на JDBC | Проверить, что Postgres запущен (`docker compose ps`) и `DB_URL` в `.env` корректен |
 | Flutter: «Target of URI not found: '…entity.g.dart'» | Не запущен build_runner — выполнить `dart run build_runner build --delete-conflicting-outputs` |
 | `flutter devices` не видит телефон | USB-режим «Передача файлов» + переустановить Google USB Driver через Android Studio |
@@ -542,8 +824,11 @@ flutter build ios --release --no-codesign
 
 ## 8. Чеклист «всё ок»
 
+- [ ] `./scripts/run-backend.sh status` — Postgres `healthy` и `/healthz` отвечает
 - [ ] `docker compose ps` показывает `mymoney-postgres` со статусом `healthy`
 - [ ] `curl http://localhost:8080/healthz` возвращает `{"status":"ok","db":"up"}`
+- [ ] `lsof -nP -iTCP:5432 -sTCP:LISTEN` показывает Docker, а не нативный Postgres (§ 2.2)
+- [ ] Поток `register` → код из лога → `verify-email` → `GET /v1/categories` проходит целиком
 - [ ] `./gradlew test` в `backend/` — все тесты зелёные
 - [ ] `flutter doctor -v` — все категории без критических ошибок
 - [ ] `flutter devices` показывает подключенный телефон

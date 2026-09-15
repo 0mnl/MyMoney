@@ -47,6 +47,8 @@ mobile/android/**/build/
 mobile/android/**/GeneratedPluginRegistrant.java
 mobile/android/**/GeneratedPluginRegistrant.kt
 mobile/coverage/
+# Скриншоты из integration_test — генерируются прогоном, в git не нужны.
+mobile/screenshots/
 
 # === Docker/DB ===
 postgres-data/

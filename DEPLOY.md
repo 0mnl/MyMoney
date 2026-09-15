@@ -168,6 +168,16 @@ docker compose --profile prod up -d --build
 
 ## 3. Хостинг бэкенда на Arch Linux
 
+> **Для постоянного сервера с живыми пользователями следуйте
+> [docs/DEPLOY_PRODUCTION.md](docs/DEPLOY_PRODUCTION.md), а не этому разделу.**
+>
+> Раздел ниже — упрощённый вариант «поднять и посмотреть»: он запускает всё
+> от вашего основного пользователя, оставляет вход по SSH-паролю и не
+> настраивает ни ограничение частоты запросов, ни шифрование бэкапов.
+> Production-рунбук покрывает то же самое, но с отдельным сервисным
+> пользователем, rootless Docker, fail2ban, allow-list регистрации,
+> шифрованными бэкапами и приёмочным чек-листом.
+
 Цель: развернуть Ktor-бэкенд на своём сервере под Arch Linux с TLS,
 автозапуском и бэкапами БД. Приложение раздаётся отдельно (APK через
 GitHub Releases или Telegram), сервер нужен только для семьи/синхронизации.
@@ -426,25 +436,36 @@ du -sh /var/lib/docker /opt/backups
 ## 4. Настройка мобильного приложения для продакшн-сервера
 
 ### 4.1 Где меняется URL
-- **Через UI (рекомендуется):** приложение → вкладка «Настройки»
-  → поле «URL бэкенда» → сохранить.
-  Значение хранится в `SharedPreferences` (`api.base_url`) и переживает
-  перезапуски.
-- **Дефолтное значение** для нового установа задано в
-  `mobile/lib/core/env.dart`:
-  ```dart
-  static const apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',   // Android emulator → host localhost
-  );
-  ```
+
+Адрес задаётся **на сборке** и в приложении не показывается: экрана
+«Подключение к серверу» больше нет, как и хранения адреса в
+`SharedPreferences`. Пользователь не должен видеть хостинг, а возможность
+подменить адрес на произвольный — готовый способ увести чужие логин и
+пароль на чужой сервер.
+
+Место ровно одно — `mobile/lib/core/env.dart`:
+
+```dart
+static const _productionBaseUrl = 'https://api.example.com';
+```
 
 ### 4.2 Собрать APK, «зашитый» под ваш сервер
+
 ```bash
 cd mobile
-flutter build apk --release \ --dart-define=API_BASE_URL=https://mymoney.example.com
+flutter build apk --release --split-per-abi
 ```
-Такой APK сразу открывается на нужный сервер, без ручного ввода URL.
+
+Либо, не трогая файл, передать адрес флагом:
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
+```
+
+Адрес обязан быть `https://`. Релизная сборка Android блокирует открытый
+трафик (`usesCleartextTraffic="false"`), а `Env.apiBaseUrl` игнорирует
+небезопасный `--dart-define` в release-режиме: APK, отправляющий пароли
+открытым текстом, не должен получиться даже случайно.
 
 ### 4.3 Раздача APK через Telegram
 

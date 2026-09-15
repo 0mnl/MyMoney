@@ -30,3 +30,7 @@
 - `0003-sql-layer-exposed.md` — выбор Exposed вместо jOOQ/JDBI.
 - `0004-conflict-resolution.md` — last-write-wins по `updated_at`, проигравшая версия в `transaction_history`.
 - `0005-sync-rest-contract.md` — REST-контракт `/sync/pull` и `/sync/push`.
+
+## Принятые после Этапа 0
+
+- `0006-single-currency-rub.md` — MVP работает только с рублём; поле `currency` остаётся в схеме как задел, пункт «Валюта» убран из Настроек.
