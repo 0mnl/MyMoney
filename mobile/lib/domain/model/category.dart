@@ -31,8 +31,15 @@ class Category {
     required this.updatedAt,
   });
 
+  /// `true`, если у категории есть родитель — то есть она подкатегория.
+  bool get isSubcategory => parentCategoryId != null;
+
   Category copyWith({
     String? name,
+    String? parentCategoryId,
+    // Отдельный флаг, потому что `null` в parentCategoryId означает
+    // «не менять», а не «сделать категорию корневой».
+    bool clearParent = false,
     bool? isMandatory,
     String? icon,
     String? color,
@@ -43,7 +50,8 @@ class Category {
       Category(
         id: id,
         familyId: familyId,
-        parentCategoryId: parentCategoryId,
+        parentCategoryId:
+            clearParent ? null : (parentCategoryId ?? this.parentCategoryId),
         name: name ?? this.name,
         type: type,
         isMandatory: isMandatory ?? this.isMandatory,

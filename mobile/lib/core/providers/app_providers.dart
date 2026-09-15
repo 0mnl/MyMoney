@@ -7,6 +7,7 @@ import '../../data/local/seed_data.dart';
 import '../../data/repository/local_account_repository.dart';
 import '../../data/repository/local_budget_repository.dart';
 import '../../data/repository/local_category_repository.dart';
+import '../../data/repository/local_debt_payment_repository.dart';
 import '../../data/repository/local_debt_repository.dart';
 import '../../data/repository/local_goal_repository.dart';
 import '../../data/repository/local_subscription_repository.dart';
@@ -21,6 +22,7 @@ import '../../domain/model/transaction.dart';
 import '../../domain/repository/account_repository.dart';
 import '../../domain/repository/budget_repository.dart';
 import '../../domain/repository/category_repository.dart';
+import '../../domain/repository/debt_payment_repository.dart';
 import '../../domain/repository/debt_repository.dart';
 import '../../domain/repository/goal_repository.dart';
 import '../../domain/repository/subscription_repository.dart';
@@ -108,6 +110,12 @@ final debtRepositoryProvider = FutureProvider<DebtRepository>((ref) async {
   return LocalDebtRepository(s.isar);
 });
 
+final debtPaymentRepositoryProvider =
+    FutureProvider<DebtPaymentRepository>((ref) async {
+  final s = await ref.watch(isarServiceProvider.future);
+  return LocalDebtPaymentRepository(s.isar);
+});
+
 final subscriptionRepositoryProvider = FutureProvider<SubscriptionRepository>((ref) async {
   final s = await ref.watch(isarServiceProvider.future);
   return LocalSubscriptionRepository(s.isar);
@@ -155,4 +163,13 @@ final subscriptionsStreamProvider = StreamProvider<List<Subscription>>((ref) asy
   final session = await ref.watch(bootstrapProvider.future);
   final repo = await ref.watch(subscriptionRepositoryProvider.future);
   yield* repo.watchByFamily(session.familyId);
+});
+
+/// График платежей конкретного долга. `family`-провайдер, а не общий поток:
+/// график открывают по одному долгу за раз, и подписываться на все сразу
+/// значило бы держать в памяти лишнее.
+final debtPaymentsStreamProvider =
+    StreamProvider.family<List<DebtPayment>, String>((ref, debtId) async* {
+  final repo = await ref.watch(debtPaymentRepositoryProvider.future);
+  yield* repo.watchByDebt(debtId);
 });

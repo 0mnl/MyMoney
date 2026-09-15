@@ -72,6 +72,12 @@ class _Boot extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(bootstrapProvider);
+
+    // Поднимаем планировщик синхронизации. Состояние намеренно не
+    // проверяется: обмен с сервером идёт фоном и не должен задерживать
+    // показ интерфейса ни на секунду — приложение работает и без сети.
+    ref.watch(syncBootstrapProvider);
+
     return bootstrap.when(
       loading: () => const SplashScreen(),
       error: (e, _) => Scaffold(body: Center(child: Text('Не удалось запустить: $e'))),

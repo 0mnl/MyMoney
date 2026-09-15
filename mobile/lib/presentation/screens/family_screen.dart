@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/providers/api_providers.dart';
 import '../../data/remote/api/family_api.dart';
+import '../theme/app_ui.dart';
 
-/// Экран управления семьёй: список членов, форма приглашения, форма принятия
-/// приглашения. Минимальный Material — под будущий Figma-макет.
+/// Управление семьёй: участники, создание приглашения (токен + QR) и приём
+/// чужого приглашения.
 class FamilyScreen extends ConsumerStatefulWidget {
   const FamilyScreen({super.key});
 
@@ -44,7 +46,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       _error = null;
     });
     try {
-      final api = await ref.read(familyApiProvider.future);
+      final api = ref.read(familyApiProvider);
       final list = await api.listMembers();
       if (!mounted) return;
       setState(() => _members = list);
@@ -58,13 +60,16 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
   Future<void> _invite() async {
     final email = _inviteEmailController.text.trim();
-    if (email.isEmpty) return;
+    if (email.isEmpty) {
+      mmSnack(context, 'Введите email участника');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final api = await ref.read(familyApiProvider.future);
+      final api = ref.read(familyApiProvider);
       final result = await api.invite(email);
       if (!mounted) return;
       setState(() {
@@ -81,21 +86,25 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
   Future<void> _accept() async {
     final token = _acceptTokenController.text.trim();
-    if (token.isEmpty) return;
+    if (token.isEmpty) {
+      mmSnack(context, 'Вставьте токен приглашения');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final api = await ref.read(familyApiProvider.future);
+      final api = ref.read(familyApiProvider);
       await api.accept(token);
       // Сессия теперь мертва: сервер отозвал refresh-токен. Чистим локально.
       await ref.read(authStoreProvider).clear();
       ref.invalidate(authSnapshotProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Готово — теперь войдите заново, чтобы получить новый family_id'),
-        ));
+        mmSnack(
+          context,
+          'Готово — войдите заново, чтобы получить новый family_id',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -110,151 +119,179 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     final authAsync = ref.watch(authSnapshotProvider);
     final loggedIn = authAsync.value != null;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Семья')),
-      body: !loggedIn
-          ? const _NotLoggedInHint()
+    return MmScreen(
+      title: 'Семья',
+      subtitle: 'Общий доступ к операциям',
+      trailing: MmCircleButton(
+        icon: Icons.refresh,
+        tooltip: 'Обновить список',
+        onTap: _busy ? () {} : _refreshMembers,
+      ),
+      child: !loggedIn
+          ? const MmEmptyState(
+              icon: Icons.person_off_outlined,
+              title: 'Нужен вход в аккаунт',
+              message: 'Чтобы пригласить второго участника, '
+                  'войдите в аккаунт на вкладке «Настройки».',
+            )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(bottom: 40),
               children: [
-                const Text('Участники', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                const MmSectionHeader(title: 'Участники'),
+                const SizedBox(height: 12),
                 if (_members == null)
-                  const Center(child: CircularProgressIndicator())
+                  const MmLoading()
                 else if (_members!.isEmpty)
-                  const Text('Пусто.')
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('Пока никого нет.', style: MmType.subhead),
+                  )
                 else
-                  ..._members!.map((m) => ListTile(
-                        leading: Icon(m.role == 'OWNER' ? Icons.star : Icons.person),
-                        title: Text('user ${m.userId.length > 8 ? '${m.userId.substring(0, 8)}…' : m.userId}'),
-                        subtitle: Text(m.role),
-                      )),
-                TextButton(
-                  onPressed: _busy ? null : _refreshMembers,
-                  child: const Text('Обновить список'),
-                ),
-                const Divider(height: 32),
-                const Text('Пригласить в семью', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _inviteEmailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email участника',
-                    border: OutlineInputBorder(),
+                  MmGroupCard(
+                    children: [
+                      for (var i = 0; i < _members!.length; i++)
+                        MmMenuRow(
+                          icon: _members![i].role == 'OWNER'
+                              ? Icons.star
+                              : Icons.person,
+                          iconBg: _members![i].role == 'OWNER'
+                              ? MmColors.tintYellow
+                              : MmColors.tintBlue,
+                          iconColor: _members![i].role == 'OWNER'
+                              ? MmColors.yellow
+                              : MmColors.blue,
+                          title: _shortId(_members![i].userId),
+                          trailing: _members![i].role,
+                          showChevron: false,
+                          onTap: null,
+                          isLast: i == _members!.length - 1,
+                        ),
+                    ],
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: _busy ? null : _invite,
-                    child: const Text('Создать приглашение'),
+                const SizedBox(height: 12),
+                const MmSectionHeader(title: 'Пригласить'),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      MmField(
+                        label: 'Email участника',
+                        controller: _inviteEmailController,
+                        hint: 'name@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      MmPrimaryButton(
+                        label: 'Создать приглашение',
+                        loading: _busy,
+                        onPressed: _busy ? null : _invite,
+                      ),
+                    ],
                   ),
                 ),
-                if (_lastInviteToken != null) _InviteResultCard(
-                  token: _lastInviteToken!,
-                  expiresAt: _lastInviteExpiresAt,
-                ),
-                const Divider(height: 32),
-                const Text('Принять приглашение', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _acceptTokenController,
-                  decoration: const InputDecoration(
-                    labelText: 'Токен приглашения',
-                    border: OutlineInputBorder(),
+                if (_lastInviteToken != null) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _InviteCard(
+                      token: _lastInviteToken!,
+                      expiresAt: _lastInviteExpiresAt,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: _busy ? null : _accept,
-                    child: const Text('Принять'),
+                ],
+                const SizedBox(height: 24),
+                const MmSectionHeader(title: 'Принять приглашение'),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      MmField(
+                        label: 'Токен приглашения',
+                        controller: _acceptTokenController,
+                        hint: 'Вставьте код из приглашения',
+                        helper: 'После принятия нужно будет войти заново — '
+                            'сервер выдаёт новый family_id',
+                      ),
+                      MmSecondaryButton(
+                        label: 'Принять',
+                        icon: Icons.login,
+                        onPressed: _busy ? null : _accept,
+                      ),
+                    ],
                   ),
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      _error!,
+                      style: MmType.subhead.copyWith(color: MmColors.red),
+                    ),
+                  ),
                 ],
               ],
             ),
     );
   }
+
+  static String _shortId(String userId) =>
+      userId.length > 8 ? 'user ${userId.substring(0, 8)}…' : 'user $userId';
 }
 
-class _NotLoggedInHint extends StatelessWidget {
-  const _NotLoggedInHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'Чтобы пригласить второго участника, войдите в аккаунт '
-          'на вкладке «Настройки».',
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
-
-class _InviteResultCard extends StatelessWidget {
-  const _InviteResultCard({required this.token, required this.expiresAt});
+class _InviteCard extends StatelessWidget {
+  const _InviteCard({required this.token, required this.expiresAt});
 
   final String token;
   final DateTime? expiresAt;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(top: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Токен приглашения (одноразовый):',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Center(
-              child: QrImageView(
-                data: token,
-                version: QrVersions.auto,
-                size: 200,
-                backgroundColor: Colors.white,
-              ),
+    return MmCard(
+      radius: 24,
+      shadows: MmShadows.tile,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Одноразовый токен приглашения', style: MmType.bodyStrong),
+          const SizedBox(height: 12),
+          Center(
+            child: QrImageView(
+              data: token,
+              version: QrVersions.auto,
+              size: 200,
+              backgroundColor: Colors.white,
             ),
-            const SizedBox(height: 8),
-            SelectableText(
-              token,
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            token,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          ),
+          if (expiresAt != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Действителен до '
+              '${DateFormat('d MMMM y, HH:mm', 'ru_RU').format(expiresAt!.toLocal())}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
-            if (expiresAt != null) ...[
-              const SizedBox(height: 4),
-              Text('Действителен до: $expiresAt',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey)),
-            ],
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: token));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Скопировано')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.copy),
-              label: const Text('Скопировать'),
+              style: MmType.caption,
             ),
           ],
-        ),
+          const SizedBox(height: 12),
+          MmSecondaryButton(
+            label: 'Скопировать',
+            icon: Icons.copy,
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: token));
+              if (context.mounted) mmSnack(context, 'Скопировано');
+            },
+          ),
+        ],
       ),
     );
   }

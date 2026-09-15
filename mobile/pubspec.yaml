@@ -45,6 +45,10 @@ dependencies:
   # PDF generation & export (Etap 3)
   pdf: ^3.11.0
   printing: ^5.12.0
+  # ZIP-контейнер для .xlsx (ExcelExportService собирает OOXML вручную).
+  # Уже приходила транзитивно через pdf/printing — объявляем явно, потому
+  # что импортируем напрямую.
+  archive: ^4.0.0
 
   # Network status для авто-триггера синхронизации при возврате связи
   connectivity_plus: ^6.0.5
@@ -54,6 +58,10 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  # Drives the real app on a device/simulator — used by integration_test/
+  # to walk the onboarding flow against a live backend.
+  integration_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 

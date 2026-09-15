@@ -6,6 +6,7 @@ import '../data/local/entities/account_entity.dart';
 import '../data/local/entities/budget_entity.dart';
 import '../data/local/entities/category_entity.dart';
 import '../data/local/entities/debt_entity.dart';
+import '../data/local/entities/debt_payment_entity.dart';
 import '../data/local/entities/goal_entity.dart';
 import '../data/local/entities/subscription_entity.dart';
 import '../data/local/entities/transaction_entity.dart';
@@ -23,6 +24,24 @@ import '../data/remote/dto/sync_dto.dart';
 ///    (we handle them eagerly to keep the local UI consistent immediately).
 ///  - After a successful pull, `lastSyncedAt` is bumped to serverTime and
 ///    persisted, so the next cycle only asks for what changed since.
+///
+/// ## Почему курсоров два
+///
+/// Изначально курсор был один: время сервера из ответа `pull` служило и
+/// границей «что отдать серверу» для локальной выборки. Это молча теряло
+/// данные. `updatedAt` у локальных строк ставят часы **устройства**, а
+/// курсор приходил с часов **сервера**; стоило телефону отставать хотя бы на
+/// минуту — и всё, что пользователь успевал записать в этот промежуток,
+/// оказывалось «старее курсора» и не попадало в push никогда. Ошибки при
+/// этом не было: операция спокойно лежала на устройстве и исчезала при
+/// переустановке приложения.
+///
+/// Поэтому курсора два, каждый в своей системе отсчёта:
+///  - [lastPushedAt] — часы устройства, граница для выборки локальных
+///    изменений;
+///  - [lastSyncedAt] — часы сервера, параметр `since` для `pull`.
+///
+/// Сравнение времени из разных источников больше нигде не происходит.
 class SyncManager {
   SyncManager({
     required this.isarService,
@@ -36,22 +55,40 @@ class SyncManager {
   final SharedPreferences prefs;
   final Logger _log;
 
+  /// Часы сервера. Ключ прежний — его чистит `AuthenticateAndSyncUseCase`,
+  /// чтобы первый после входа pull пришёл полным снимком.
   static const _kLastSyncedAt = 'sync.last_synced_at';
 
-  DateTime? get lastSyncedAt {
-    final raw = prefs.getString(_kLastSyncedAt);
+  /// Часы устройства. Отдельно от [_kLastSyncedAt] — см. комментарий к классу.
+  static const _kLastPushedAt = 'sync.last_pushed_at';
+
+  DateTime? get lastSyncedAt => _readInstant(_kLastSyncedAt);
+
+  DateTime? get lastPushedAt => _readInstant(_kLastPushedAt);
+
+  DateTime? _readInstant(String key) {
+    final raw = prefs.getString(key);
     return raw == null ? null : DateTime.parse(raw).toUtc();
   }
 
   Future<void> _setLastSyncedAt(DateTime value) =>
       prefs.setString(_kLastSyncedAt, value.toUtc().toIso8601String());
 
-  Future<SyncResult> sync() async {
-    final since = lastSyncedAt;
-    _log.i('Sync cycle: since=$since');
+  Future<void> _setLastPushedAt(DateTime value) =>
+      prefs.setString(_kLastPushedAt, value.toUtc().toIso8601String());
 
-    // 1. Push local dirty rows (updated after last successful sync).
-    final localBundle = await _collectDirty(since);
+  Future<SyncResult> sync() async {
+    final pullSince = lastSyncedAt;
+    final pushSince = lastPushedAt;
+    // Засекаем ДО выборки, а не после отправки: всё, что пользователь успеет
+    // записать за время сетевого запроса, останется новее курсора и уедет
+    // следующим циклом. Ставить курсор по времени завершения push значило бы
+    // проглотить эти записи.
+    final cycleStart = DateTime.now().toUtc();
+    _log.i('Sync cycle: pullSince=$pullSince pushSince=$pushSince');
+
+    // 1. Push local dirty rows (updated after last successful push).
+    final localBundle = await _collectDirty(pushSince);
     var conflicts = 0;
     if (!localBundle.isEmpty) {
       final pushed = await syncApi.push(localBundle);
@@ -61,9 +98,13 @@ class SyncManager {
       }
       _log.i('Push: accepted=${pushed.accepted.length} conflicts=$conflicts');
     }
+    // Двигаем курсор только после успешного push: любое исключение выше
+    // оставит его на месте, и те же строки уйдут повторно. Push идемпотентен
+    // (LWW по updatedAt), так что повтор безопаснее пропуска.
+    await _setLastPushedAt(cycleStart);
 
     // 2. Pull server changes since last cursor.
-    final pulled = await syncApi.pull(since: since);
+    final pulled = await syncApi.pull(since: pullSince);
     await _applyBundle(pulled.bundle);
     await _setLastSyncedAt(pulled.serverTime);
     _log.i('Pull: applied ${_bundleSize(pulled.bundle)} rows, cursor=${pulled.serverTime}');
@@ -97,6 +138,12 @@ class SyncManager {
     final debts = since == null
         ? await isar.debtEntitys.where().findAll()
         : await isar.debtEntitys.filter().updatedAtGreaterThan(since).findAll();
+    // График платежей уезжал бы в никуда: сервер его принимает и отдаёт с
+    // самого начала, а клиент не собирал и не применял — при переходе на
+    // другое устройство долг приезжал без расписания погашения.
+    final debtPayments = since == null
+        ? await isar.debtPaymentEntitys.where().findAll()
+        : await isar.debtPaymentEntitys.filter().updatedAtGreaterThan(since).findAll();
     final subs = since == null
         ? await isar.subscriptionEntitys.where().findAll()
         : await isar.subscriptionEntitys.filter().updatedAtGreaterThan(since).findAll();
@@ -108,6 +155,7 @@ class SyncManager {
       budgets: budgets.map((e) => e.toDomain()).toList(),
       goals: goals.map((e) => e.toDomain()).toList(),
       debts: debts.map((e) => e.toDomain()).toList(),
+      debtPayments: debtPayments.map((e) => e.toDomain()).toList(),
       subscriptions: subs.map((e) => e.toDomain()).toList(),
     );
   }
@@ -123,6 +171,7 @@ class SyncManager {
         budgets: [...merged.budgets, ...c.serverBundle.budgets],
         goals: [...merged.goals, ...c.serverBundle.goals],
         debts: [...merged.debts, ...c.serverBundle.debts],
+        debtPayments: [...merged.debtPayments, ...c.serverBundle.debtPayments],
         subscriptions: [...merged.subscriptions, ...c.serverBundle.subscriptions],
       );
     }
@@ -163,6 +212,11 @@ class SyncManager {
           bundle.debts.map(DebtEntity.fromDomain).toList(),
         );
       }
+      if (bundle.debtPayments.isNotEmpty) {
+        await isar.debtPaymentEntitys.putAll(
+          bundle.debtPayments.map(DebtPaymentEntity.fromDomain).toList(),
+        );
+      }
       if (bundle.subscriptions.isNotEmpty) {
         await isar.subscriptionEntitys.putAll(
           bundle.subscriptions.map(SubscriptionEntity.fromDomain).toList(),
@@ -178,6 +232,7 @@ class SyncManager {
       b.budgets.length +
       b.goals.length +
       b.debts.length +
+      b.debtPayments.length +
       b.subscriptions.length;
 }
 

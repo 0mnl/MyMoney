@@ -12,6 +12,9 @@ String authErrorMessage(Object error) {
     switch (error.code) {
       case 'EMAIL_TAKEN':
         return 'Этот адрес уже зарегистрирован. Войдите в аккаунт.';
+      case 'EMAIL_NOT_ALLOWED':
+        return 'Регистрация на этом сервере пока по приглашениям. '
+            'Попросите добавить ваш адрес.';
       case 'VALIDATION_FAILED':
         return error.details['field'] == 'password'
             ? 'Пароль должен быть не короче 8 символов.'
@@ -48,7 +51,9 @@ String authErrorMessage(Object error) {
         return 'Сервер не отвечает. Попробуйте ещё раз.';
       case DioExceptionType.connectionError:
       case DioExceptionType.unknown:
-        return 'Нет связи с сервером. Проверьте интернет и адрес сервера в настройках.';
+        // Адрес сервера пользователь не задаёт и поменять не может —
+        // отправлять его «в настройки» было бы советом в никуда.
+        return 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
       default:
         return 'Не удалось выполнить запрос. Попробуйте ещё раз.';
     }

@@ -8,10 +8,14 @@ import '../../domain/model/category.dart';
 import '../../domain/model/enums.dart';
 import '../../domain/model/money.dart';
 import '../../domain/usecase/budget_progress.dart';
+import '../theme/app_ui.dart';
+import '../widgets/category_icon.dart';
 
-/// Список бюджетов + прогресс за период. Каждая карточка сразу показывает
-/// на сколько уже потрачено — цель UI Этапа 2 (Bible §24 «Бюджет считается
+/// Список бюджетов с прогрессом за период (Bible §24: «Бюджет считается
 /// корректно для всех трёх периодов»).
+///
+/// Таб внутри `HomeShell` — отсюда [MmScreen.embedded] и отступ снизу под
+/// плавающей навигацией.
 class BudgetsScreen extends ConsumerWidget {
   const BudgetsScreen({super.key});
 
@@ -21,98 +25,150 @@ class BudgetsScreen extends ConsumerWidget {
     final txAsync = ref.watch(transactionsStreamProvider);
     final catsAsync = ref.watch(categoriesStreamProvider);
 
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Бюджеты')),
-        body: budgetsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Ошибка: $e')),
-          data: (budgets) => txAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Ошибка: $e')),
-            data: (transactions) => catsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Ошибка: $e')),
-              data: (categories) {
-                final visibleBudgets = budgets.where((b) => !b.isDeleted).toList();
-                if (visibleBudgets.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'Пока нет ни одного бюджета.\nДобавьте план для категории — вы сразу увидите, сколько уже потрачено.',
-                        textAlign: TextAlign.center,
+    return MmScreen(
+      embedded: true,
+      title: 'Бюджет',
+      trailing: MmCircleButton(
+        icon: Icons.add,
+        tooltip: 'Новый бюджет',
+        onTap: () => _openSheet(context),
+      ),
+      child: budgetsAsync.when(
+        loading: () => const MmLoading(),
+        error: (e, _) => MmError(e),
+        data: (budgets) => txAsync.when(
+          loading: () => const MmLoading(),
+          error: (e, _) => MmError(e),
+          data: (transactions) => catsAsync.when(
+            loading: () => const MmLoading(),
+            error: (e, _) => MmError(e),
+            data: (categories) {
+              final visible = budgets.where((b) => !b.isDeleted).toList();
+              if (visible.isEmpty) {
+                return MmEmptyState(
+                  icon: Icons.pie_chart_outline,
+                  title: 'Бюджетов пока нет',
+                  message: 'Задайте план по категории — и увидите, '
+                      'сколько уже потрачено.',
+                  actionLabel: 'Создать бюджет',
+                  onAction: () => _openSheet(context),
+                );
+              }
+
+              final catById = {for (final c in categories) c.id: c};
+              final progresses = [
+                for (final b in visible) computeBudgetProgress(b, transactions),
+              ];
+              final planned = progresses.fold<int>(
+                0,
+                (s, p) => s + p.budget.plannedAmountKopecks,
+              );
+              final spent =
+                  progresses.fold<int>(0, (s, p) => s + p.spentAmountKopecks);
+
+              return ListView(
+                padding: const EdgeInsets.only(bottom: kMmTabBottomInset),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _OverallCard(
+                      plannedKopecks: planned,
+                      spentKopecks: spent,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const MmSectionHeader(title: 'По категориям'),
+                  const SizedBox(height: 12),
+                  for (final p in progresses)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: _BudgetCard(
+                        progress: p,
+                        category: catById[p.budget.categoryId],
+                        onEdit: () => _openSheet(context, existing: p.budget),
+                        onDelete: () => _confirmDelete(context, ref, p.budget),
                       ),
                     ),
-                  );
-                }
-                final catById = {for (final c in categories) c.id: c};
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: visibleBudgets.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
-                  itemBuilder: (context, i) {
-                    final b = visibleBudgets[i];
-                    final progress = computeBudgetProgress(b, transactions);
-                    return _BudgetCard(
-                      progress: progress,
-                      category: catById[b.categoryId],
-                      onDelete: () => _confirmDelete(context, ref, b),
-                      onEdit: () => _openEditSheet(context, ref, b),
-                    );
-                  },
-                );
-              },
-            ),
+                ],
+              );
+            },
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'add-budget',
-          onPressed: () => _openAddSheet(context, ref),
-          child: const Icon(Icons.add),
-        ),
       ),
     );
   }
 
-  Future<void> _openAddSheet(BuildContext context, WidgetRef ref) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: const _BudgetSheet(),
-      ),
+  static Future<void> _openSheet(BuildContext context, {Budget? existing}) {
+    return mmShowSheet<void>(
+      context,
+      child: _BudgetSheet(existing: existing),
     );
   }
 
-  Future<void> _openEditSheet(BuildContext context, WidgetRef ref, Budget budget) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: _BudgetSheet(existing: budget),
-      ),
+  static Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Budget budget,
+  ) async {
+    final ok = await mmConfirm(
+      context,
+      title: 'Удалить бюджет?',
+      message: 'Операции по категории останутся, '
+          'бюджет просто перестанет отображаться.',
     );
+    if (!ok) return;
+    final repo = await ref.read(budgetRepositoryProvider.future);
+    await repo.softDelete(budget.id);
   }
+}
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Budget budget) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить бюджет?'),
-        content: const Text('Операции по категории останутся; бюджет просто перестанет отображаться.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
+class _OverallCard extends StatelessWidget {
+  const _OverallCard({required this.plannedKopecks, required this.spentKopecks});
+
+  final int plannedKopecks;
+  final int spentKopecks;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = plannedKopecks - spentKopecks;
+    final over = remaining < 0;
+    final value = plannedKopecks <= 0 ? 0.0 : spentKopecks / plannedKopecks;
+
+    return MmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Потрачено из плана', style: MmType.subhead),
+          const SizedBox(height: 4),
+          Text(Money.formatRub(spentKopecks), style: MmType.largeTitle),
+          const SizedBox(height: 12),
+          MmProgressBar(
+            value: value,
+            color: over ? MmColors.red : MmColors.green,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'План: ${Money.formatRub(plannedKopecks)}',
+                  style: MmType.caption,
+                ),
+              ),
+              Text(
+                over
+                    ? 'Превышение: ${Money.formatRub(-remaining)}'
+                    : 'Осталось: ${Money.formatRub(remaining)}',
+                style: MmType.caption.copyWith(
+                  color: over ? MmColors.red : MmColors.green,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
-      final repo = await ref.read(budgetRepositoryProvider.future);
-      await repo.softDelete(budget.id);
-    }
   }
 }
 
@@ -120,74 +176,91 @@ class _BudgetCard extends StatelessWidget {
   const _BudgetCard({
     required this.progress,
     required this.category,
-    required this.onDelete,
     required this.onEdit,
+    required this.onDelete,
   });
 
   final BudgetProgress progress;
   final Category? category;
-  final VoidCallback onDelete;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final b = progress.budget;
     final planned = b.plannedAmountKopecks;
     final spent = progress.spentAmountKopecks;
-    final barValue = planned <= 0 ? 0.0 : (spent / planned).clamp(0.0, 1.0);
-    final barColor = progress.isOverspent
-        ? Theme.of(context).colorScheme.error
-        : Theme.of(context).colorScheme.primary;
+    final value = planned <= 0 ? 0.0 : spent / planned;
+    final over = progress.isOverspent;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        onTap: onEdit,
-        onLongPress: onDelete,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return MmCard(
+      radius: 24,
+      shadows: MmShadows.tile,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      onTap: onEdit,
+      onLongPress: onDelete,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      category?.name ?? 'Категория удалена',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  Text(b.periodType.labelRu, style: Theme.of(context).textTheme.bodySmall),
-                ],
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: MmColors.fill,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  iconForName(category?.icon),
+                  size: 18,
+                  color: MmColors.label,
+                ),
               ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(value: barValue, color: barColor, minHeight: 8),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Потрачено: ${Money.formatRub(spent)}'),
-                  Text('План: ${Money.formatRub(planned)}'),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  category?.name ?? 'Категория удалена',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MmType.bodyStrong,
+                ),
               ),
-              const SizedBox(height: 4),
+              Text(b.periodType.labelRu, style: MmType.caption),
+            ],
+          ),
+          const SizedBox(height: 12),
+          MmProgressBar(
+            value: value,
+            color: over ? MmColors.red : MmColors.blue,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${Money.formatRub(spent)} из ${Money.formatRub(planned)}',
+                  style: MmType.subhead.copyWith(color: MmColors.label),
+                ),
+              ),
               Text(
-                progress.isOverspent
-                    ? 'Превышение на ${Money.formatRub(-progress.remainingAmountKopecks)}'
-                    : 'Осталось: ${Money.formatRub(progress.remainingAmountKopecks)}',
-                style: TextStyle(
-                  color: progress.isOverspent
-                      ? Theme.of(context).colorScheme.error
-                      : null,
+                over
+                    ? '+${Money.formatRub(-progress.remainingAmountKopecks)}'
+                    : Money.formatRub(progress.remainingAmountKopecks),
+                style: MmType.footnote.copyWith(
+                  color: over ? MmColors.red : MmColors.green,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
+
+// ─── Форма создания / редактирования ─────────────────────────────────────────
 
 class _BudgetSheet extends ConsumerStatefulWidget {
   const _BudgetSheet({this.existing});
@@ -200,12 +273,22 @@ class _BudgetSheet extends ConsumerStatefulWidget {
 class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
   late final TextEditingController _amountCtrl;
   BudgetPeriodType _period = BudgetPeriodType.month;
-  DateTime _periodStart = _firstDayOfCurrentMonthUtc();
   String? _categoryId;
 
-  static DateTime _firstDayOfCurrentMonthUtc() {
-    final now = DateTime.now().toUtc();
-    return DateTime.utc(now.year, now.month, 1);
+  /// Начало периода считается от выбранного типа, а не всегда от первого числа
+  /// месяца: недельный бюджет, стартующий 1-го числа, закрывался бы через семь
+  /// дней и весь остаток месяца показывал бы ноль потрачено.
+  DateTime get _periodStart {
+    final now = DateTime.now();
+    return switch (_period) {
+      BudgetPeriodType.week => DateTime(
+          now.year,
+          now.month,
+          now.day - (now.weekday - 1),
+        ).toUtc(),
+      BudgetPeriodType.month => DateTime.utc(now.year, now.month, 1),
+      BudgetPeriodType.year => DateTime.utc(now.year, 1, 1),
+    };
   }
 
   @override
@@ -213,11 +296,10 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     super.initState();
     final e = widget.existing;
     _amountCtrl = TextEditingController(
-      text: e == null ? '' : (e.plannedAmountKopecks / 100).toStringAsFixed(2),
+      text: e == null ? '' : Money.formatPlain(e.plannedAmountKopecks),
     );
     if (e != null) {
       _period = e.periodType;
-      _periodStart = e.periodStart;
       _categoryId = e.categoryId;
     }
   }
@@ -230,85 +312,102 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existing != null;
     final catsAsync = ref.watch(categoriesStreamProvider);
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(widget.existing == null ? 'Новый бюджет' : 'Изменить бюджет',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          catsAsync.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('Ошибка: $e'),
-            data: (categories) {
-              final expense = categories
-                  .where((c) => c.type == CategoryType.expense && !c.isArchived)
-                  .toList();
-              _categoryId ??= expense.isNotEmpty ? expense.first.id : null;
-              return DropdownButtonFormField<String>(
-                initialValue: _categoryId,
-                decoration: const InputDecoration(labelText: 'Категория расходов'),
-                items: expense
-                    .map((c) => DropdownMenuItem<String>(value: c.id, child: Text(c.name)))
-                    .toList(),
-                onChanged: widget.existing == null
-                    ? (v) => setState(() => _categoryId = v)
-                    : null,
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<BudgetPeriodType>(
-            initialValue: _period,
-            decoration: const InputDecoration(labelText: 'Период'),
-            items: BudgetPeriodType.values
-                .map((p) => DropdownMenuItem(value: p, child: Text(p.labelRu)))
-                .toList(),
-            onChanged: widget.existing == null
-                ? (v) => setState(() => _period = v ?? BudgetPeriodType.month)
-                : null,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountCtrl,
-            decoration: const InputDecoration(labelText: 'Сумма плана, ₽'),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
+
+    return MmSheet(
+      title: isEdit ? 'Изменить бюджет' : 'Новый бюджет',
+      subtitle: isEdit
+          // Категорию и период у существующего бюджета не меняем: период уже
+          // «прожит», а смена категории превратила бы историю в чужую.
+          ? 'Категорию и период у созданного бюджета изменить нельзя'
+          : null,
+      primaryLabel: isEdit ? 'Сохранить' : 'Создать',
+      onPrimary: _save,
+      children: [
+        catsAsync.when(
+          loading: () => const MmLoading(),
+          error: (e, _) => MmError(e),
+          data: (categories) {
+            final expense = categories
+                .where((c) =>
+                    c.type == CategoryType.expense &&
+                    !c.isArchived &&
+                    !c.isDeleted,)
+                .toList();
+            _categoryId ??= expense.isNotEmpty ? expense.first.id : null;
+
+            // При редактировании показываем только выбранную категорию: список
+            // остальных обещал бы выбор, которого нет.
+            final items = isEdit
+                ? [
+                    for (final c in expense.where((c) => c.id == _categoryId))
+                      (c.id, c.name),
+                  ]
+                : [for (final c in expense) (c.id, c.name)];
+
+            return MmChipsField<String>(
+              label: 'Категория расходов',
+              items: items,
+              selected: _categoryId,
+              onSelected: (id) => setState(() => _categoryId = id),
+              emptyHint: 'Нет категорий расходов — добавьте их в Настройках',
+            );
+          },
+        ),
+        MmChipsField<BudgetPeriodType>(
+          label: 'Период',
+          items: [
+            for (final p in BudgetPeriodType.values)
+              if (!isEdit || p == _period) (p, p.labelRu),
+          ],
+          selected: _period,
+          onSelected: (p) => setState(() => _period = p),
+        ),
+        MmField(
+          label: 'Сумма плана',
+          controller: _amountCtrl,
+          hint: '0,00',
+          suffix: '₽',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+      ],
     );
   }
 
   Future<void> _save() async {
     final amount = Money.parseToKopecks(_amountCtrl.text);
-    if (amount == null || _categoryId == null) return;
+    if (amount == null) {
+      mmSnack(context, 'Введите сумму больше нуля');
+      return;
+    }
+    if (_categoryId == null) {
+      mmSnack(context, 'Выберите категорию');
+      return;
+    }
 
     final session = await ref.read(bootstrapProvider.future);
     final repo = await ref.read(budgetRepositoryProvider.future);
     final now = DateTime.now().toUtc();
-
     final existing = widget.existing;
+
     if (existing == null) {
-      await repo.create(Budget(
-        id: const Uuid().v4(),
-        familyId: session.familyId,
-        categoryId: _categoryId!,
-        periodType: _period,
-        periodStart: _periodStart,
-        plannedAmountKopecks: amount,
-        createdAt: now,
-        updatedAt: now,
-      ));
+      await repo.create(
+        Budget(
+          id: const Uuid().v4(),
+          familyId: session.familyId,
+          categoryId: _categoryId!,
+          periodType: _period,
+          periodStart: _periodStart,
+          plannedAmountKopecks: amount,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
     } else {
-      await repo.update(existing.copyWith(plannedAmountKopecks: amount, updatedAt: now));
+      await repo.update(
+        existing.copyWith(plannedAmountKopecks: amount, updatedAt: now),
+      );
     }
     if (mounted) Navigator.of(context).pop();
   }

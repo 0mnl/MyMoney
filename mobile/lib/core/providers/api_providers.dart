@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/remote/api/auth_api.dart';
 import '../../data/remote/api/family_api.dart';
@@ -11,46 +10,32 @@ import '../../domain/usecase/authenticate_and_sync.dart';
 import '../../sync/sync_manager.dart';
 import '../../sync/sync_scheduler.dart';
 import '../env.dart';
+import '../feature_flags.dart';
 import 'app_providers.dart';
-
-/// Backend URL override. Users type it into the Settings screen and it lands
-/// in shared_preferences so the choice survives restart. Falls back to the
-/// compile-time default from Env (10.0.2.2:8080 on Android emulator).
-final apiBaseUrlProvider = FutureProvider<String>((ref) async {
-  final prefs = await ref.watch(sharedPrefsProvider.future);
-  return prefs.getString('api.base_url') ?? Env.apiBaseUrl;
-});
-
-Future<void> setApiBaseUrl(SharedPreferences prefs, String url) async {
-  await prefs.setString('api.base_url', url.trim());
-}
 
 final authStoreProvider = Provider<AuthStore>((ref) => AuthStore());
 
-final apiClientProvider = FutureProvider<ApiClient>((ref) async {
-  final baseUrl = await ref.watch(apiBaseUrlProvider.future);
+/// Адрес бэкенда. Берётся только из [Env] — задаётся на сборке и не
+/// меняется на устройстве.
+///
+/// Раньше значение можно было переопределить через SharedPreferences с
+/// экрана «Подключение к серверу». Экран убран: пользователь не должен
+/// видеть хостинг вообще, а возможность подменить адрес на произвольный —
+/// ещё и готовый способ увести чужие учётные данные на чужой сервер.
+final apiClientProvider = Provider<ApiClient>((ref) {
   final store = ref.watch(authStoreProvider);
-  return ApiClient(baseUrl: baseUrl, authStore: store);
+  return ApiClient(baseUrl: Env.apiBaseUrl, authStore: store);
 });
 
-final authApiProvider = FutureProvider<AuthApi>((ref) async {
-  final client = await ref.watch(apiClientProvider.future);
-  return AuthApi(client);
-});
+final authApiProvider = Provider<AuthApi>((ref) => AuthApi(ref.watch(apiClientProvider)));
 
-final familyApiProvider = FutureProvider<FamilyApi>((ref) async {
-  final client = await ref.watch(apiClientProvider.future);
-  return FamilyApi(client);
-});
+final familyApiProvider = Provider<FamilyApi>((ref) => FamilyApi(ref.watch(apiClientProvider)));
 
-final syncApiProvider = FutureProvider<SyncApi>((ref) async {
-  final client = await ref.watch(apiClientProvider.future);
-  return SyncApi(client);
-});
+final syncApiProvider = Provider<SyncApi>((ref) => SyncApi(ref.watch(apiClientProvider)));
 
 final syncManagerProvider = FutureProvider<SyncManager>((ref) async {
   final isar = await ref.watch(isarServiceProvider.future);
-  final api = await ref.watch(syncApiProvider.future);
+  final api = ref.watch(syncApiProvider);
   final prefs = await ref.watch(sharedPrefsProvider.future);
   return SyncManager(
     isarService: isar,
@@ -61,7 +46,7 @@ final syncManagerProvider = FutureProvider<SyncManager>((ref) async {
 });
 
 final authenticateAndSyncProvider = FutureProvider<AuthenticateAndSyncUseCase>((ref) async {
-  final authApi = await ref.watch(authApiProvider.future);
+  final authApi = ref.watch(authApiProvider);
   final store = ref.watch(authStoreProvider);
   final isar = await ref.watch(isarServiceProvider.future);
   final prefs = await ref.watch(sharedPrefsProvider.future);
@@ -102,7 +87,7 @@ class AuthSnapshotNotifier extends AsyncNotifier<AuthSnapshot?> {
 /// changes, so subsequent syncs always go to the right backend.
 final syncSchedulerProvider = FutureProvider<SyncScheduler>((ref) async {
   final manager = await ref.watch(syncManagerProvider.future);
-  final interval = Duration(seconds: Env.syncIntervalSeconds);
+  const interval = Duration(seconds: Env.syncIntervalSeconds);
   final scheduler = SyncScheduler(
     manager: manager,
     interval: interval,
@@ -110,6 +95,26 @@ final syncSchedulerProvider = FutureProvider<SyncScheduler>((ref) async {
   );
   ref.onDispose(() => scheduler.dispose());
   return scheduler;
+});
+
+/// Запускает планировщик синхронизации, когда есть сессия.
+///
+/// Планировщик существовал и раньше, но `start()` не вызывался ниоткуда:
+/// провайдер создавал объект, объект молчал, и обмен с сервером происходил
+/// ровно один раз — в момент входа. Данные, добавленные потом, не уезжали
+/// никуда до следующего логина.
+///
+/// Провайдер намеренно возвращает `void` и не входит в критический путь
+/// отрисовки: интерфейс не должен ждать сеть. Оболочка просто «касается» его
+/// (`ref.watch`), чтобы он ожил и остался жить, пока жива сессия.
+final syncBootstrapProvider = FutureProvider<void>((ref) async {
+  if (!FeatureFlags.cloudSync) return;
+
+  final session = await ref.watch(authSnapshotProvider.future);
+  if (session == null) return;
+
+  final scheduler = await ref.watch(syncSchedulerProvider.future);
+  await scheduler.start();
 });
 
 /// Rebroadcasts SyncScheduler.statusStream as a Riverpod stream so widgets
