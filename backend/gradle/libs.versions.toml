@@ -11,8 +11,15 @@ kotlinx-datetime = "0.6.1"
 kotlinx-coroutines = "1.9.0"
 logback = "1.5.12"
 argon2 = "2.11"
-testcontainers = "1.20.4"
+# Angus Mail — эталонная реализация Jakarta Mail 2.x (наследник JavaMail).
+angus-mail = "2.0.3"
+testcontainers = "1.21.4"
 junit = "5.11.3"
+# Ktor 3.0.3 pulls Shadow 8.3.5, whose startShadowScripts task still maps the
+# `mainClassName` property that Gradle 9 removed — `./gradlew build` fails on it.
+# 8.3.11 is the newest release that stays on the 8.x line, so the Gradle 8.10
+# builder image in Dockerfile keeps working (Shadow 9.x needs Gradle 8.11+).
+shadow = "8.3.11"
 
 [libraries]
 # Ktor server
@@ -55,6 +62,7 @@ koin-slf4j                  = { module = "io.insert-koin:koin-logger-slf4j",    
 
 # Security
 argon2                      = { module = "de.mkammerer:argon2-jvm",                      version.ref = "argon2" }
+angus-mail                  = { module = "org.eclipse.angus:jakarta.mail",                version.ref = "angus-mail" }
 
 # Logging
 logback-classic             = { module = "ch.qos.logback:logback-classic",               version.ref = "logback" }
@@ -74,3 +82,4 @@ kotlin-jvm                  = { id = "org.jetbrains.kotlin.jvm",                
 kotlin-serialization        = { id = "org.jetbrains.kotlin.plugin.serialization",         version.ref = "kotlin" }
 ktor                        = { id = "io.ktor.plugin",                                    version.ref = "ktor" }
 flyway                      = { id = "org.flywaydb.flyway",                               version.ref = "flyway" }
+shadow                      = { id = "com.gradleup.shadow",                               version.ref = "shadow" }

@@ -2,6 +2,7 @@ package mymoney.domain.usecase.auth
 
 import kotlinx.datetime.Clock
 import mymoney.domain.errors.ConflictException
+import mymoney.domain.errors.ForbiddenException
 import mymoney.domain.errors.ValidationException
 import mymoney.domain.model.Family
 import mymoney.domain.model.FamilyMember
@@ -11,6 +12,7 @@ import mymoney.domain.repository.FamilyMemberRepository
 import mymoney.domain.repository.FamilyRepository
 import mymoney.domain.repository.UserRepository
 import mymoney.domain.security.PasswordHasher
+import mymoney.domain.usecase.account.SeedDefaultAccountUseCase
 import mymoney.domain.usecase.category.SeedSystemCategoriesUseCase
 import java.util.UUID
 
@@ -32,7 +34,9 @@ class RegisterUserUseCase(
     private val members: FamilyMemberRepository,
     private val passwordHasher: PasswordHasher,
     private val seedSystemCategories: SeedSystemCategoriesUseCase,
+    private val seedDefaultAccount: SeedDefaultAccountUseCase,
     private val codeIssuer: VerificationCodeIssuer,
+    private val registrationPolicy: RegistrationPolicy,
     private val clock: Clock = Clock.System,
 ) {
 
@@ -40,6 +44,16 @@ class RegisterUserUseCase(
         val email = normalizeEmail(rawEmail)
         if (!isValidEmail(email)) {
             throw ValidationException("Invalid email", mapOf("field" to "email"))
+        }
+        // Проверка до всего остального — в том числе до поиска существующего
+        // пользователя. Иначе адрес вне списка мог бы по разнице ответов
+        // («уже занят» против «не разрешён») выяснить, кто здесь зарегистрирован.
+        if (!registrationPolicy.allows(email)) {
+            throw ForbiddenException(
+                msg = "Registration is limited to invited addresses",
+                code = "EMAIL_NOT_ALLOWED",
+                details = mapOf("email" to email),
+            )
         }
         if (!isValidPassword(password)) {
             throw ValidationException(
@@ -88,6 +102,7 @@ class RegisterUserUseCase(
             ),
         )
         seedSystemCategories.execute(familyId)
+        seedDefaultAccount.execute(familyId)
 
         return codeIssuer.issue(userId, email).toPending(email)
     }

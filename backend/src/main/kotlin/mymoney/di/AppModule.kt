@@ -20,6 +20,7 @@ import mymoney.data.repository.TransactionRepositoryImpl
 import mymoney.data.repository.EmailVerificationRepositoryImpl
 import mymoney.data.repository.UserRepositoryImpl
 import mymoney.data.notification.LoggingVerificationCodeSender
+import mymoney.data.notification.SmtpVerificationCodeSender
 import mymoney.data.security.Argon2PasswordHasher
 import mymoney.data.security.JwtTokenService
 import mymoney.data.security.Sha256VerificationCodeService
@@ -46,11 +47,13 @@ import mymoney.domain.usecase.account.CreateAccountUseCase
 import mymoney.domain.usecase.account.DeleteAccountUseCase
 import mymoney.domain.usecase.account.GetAccountUseCase
 import mymoney.domain.usecase.account.ListAccountsUseCase
+import mymoney.domain.usecase.account.SeedDefaultAccountUseCase
 import mymoney.domain.usecase.account.UpdateAccountUseCase
 import mymoney.domain.usecase.auth.LoginUseCase
 import mymoney.domain.usecase.auth.LogoutAllUseCase
 import mymoney.domain.usecase.auth.RefreshTokenUseCase
 import mymoney.domain.usecase.auth.RegisterUserUseCase
+import mymoney.domain.usecase.auth.RegistrationPolicy
 import mymoney.domain.usecase.auth.ResendVerificationCodeUseCase
 import mymoney.domain.usecase.auth.VerificationCodeIssuer
 import mymoney.domain.usecase.auth.VerificationCodeSender
@@ -135,9 +138,19 @@ fun appModule(
     single<TokenService> { JwtTokenService(get()) }
     single<VerificationCodeService> { Sha256VerificationCodeService() }
 
-    // Confirmation-code delivery. Development logs the code instead of sending
-    // mail; wire an SMTP implementation here before going to production.
-    single<VerificationCodeSender> { verificationCodeSender ?: LoggingVerificationCodeSender() }
+    // Доставка кодов подтверждения. Приоритет: явно переданная реализация
+    // (её подставляют тесты) → SMTP, если задан MAIL_HOST → запись в лог.
+    //
+    // В production `loadAppConfig` требует настроенную почту, поэтому до
+    // логирующей ветки там дело не доходит — она остаётся только для dev.
+    single<VerificationCodeSender> {
+        verificationCodeSender
+            ?: if (config.mail.isConfigured) {
+                SmtpVerificationCodeSender(config.mail)
+            } else {
+                LoggingVerificationCodeSender()
+            }
+    }
 
     // Category use cases (declared before auth so RegisterUserUseCase can inject seed)
     single { SeedSystemCategoriesUseCase(get()) }
@@ -149,8 +162,10 @@ fun appModule(
     single { DeleteCategoryUseCase(get()) }
 
     // Auth use cases
+    single { RegistrationPolicy(config.registration.entries) }
     single { VerificationCodeIssuer(get(), get(), get()) }
-    single { RegisterUserUseCase(get(), get(), get(), get(), get(), get()) }
+    single { SeedDefaultAccountUseCase(get()) }
+    single { RegisterUserUseCase(get(), get(), get(), get(), get(), get(), get(), get()) }
     single { VerifyEmailUseCase(get(), get(), get(), get(), get(), get()) }
     single { ResendVerificationCodeUseCase(get(), get()) }
     single { LoginUseCase(get(), get(), get(), get(), get()) }

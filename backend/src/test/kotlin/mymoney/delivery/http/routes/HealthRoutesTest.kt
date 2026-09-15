@@ -6,6 +6,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import mymoney.delivery.http.plugins.configureHttp
+import mymoney.test.devAppConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,7 +16,7 @@ class HealthRoutesTest {
     @Test
     fun `healthz returns ok when database is null (disabled)`() = testApplication {
         application {
-            configureHttp()
+            configureHttp(devAppConfig())
             routing {
                 healthRoutes(database = null)
             }

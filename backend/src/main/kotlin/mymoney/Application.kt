@@ -97,6 +97,14 @@ fun Application.module() = configureApplication(verificationCodeSender = null)
 fun Application.configureApplication(verificationCodeSender: VerificationCodeSender?) {
     val config = loadAppConfig(environment.config)
     log.info("Starting MyMoney backend, env={}, jdbc={}", config.env, config.db.url)
+    // Открытая регистрация — состояние, которое нельзя обнаружить по логам
+    // постфактум: заметно оно только когда чужие аккаунты уже завелись.
+    // Поэтому режим печатается на каждом старте, а не только при ограничении.
+    if (config.registration.isRestricted) {
+        log.info("Registration is restricted to {} allow-list entries", config.registration.entries.size)
+    } else {
+        log.warn("Registration is OPEN to anyone who can reach this server. Set REGISTRATION_ALLOWLIST to restrict it.")
+    }
 
     val databaseFactory = DatabaseFactory(config.db).apply { init() }
     monitor.subscribe(ApplicationStopped) { databaseFactory.close() }
@@ -106,7 +114,7 @@ fun Application.configureApplication(verificationCodeSender: VerificationCodeSen
         modules(appModule(config, databaseFactory, verificationCodeSender))
     }
 
-    configureHttp()
+    configureHttp(config)
     configureAuth(config.jwt)
 
     val register by inject<RegisterUserUseCase>()

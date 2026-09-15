@@ -13,6 +13,8 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import mymoney.config.AppConfig
+import mymoney.config.AppEnv
 import mymoney.domain.errors.ConflictException
 import mymoney.domain.errors.DomainException
 import mymoney.domain.errors.ForbiddenException
@@ -22,8 +24,14 @@ import mymoney.domain.errors.UnauthorizedException
 import mymoney.domain.errors.ValidationException
 import org.slf4j.event.Level
 
-fun Application.configureHttp() {
-    install(DefaultHeaders)
+fun Application.configureHttp(config: AppConfig) {
+    val isProduction = config.env == AppEnv.PRODUCTION
+
+    install(DefaultHeaders) {
+        // Заголовок Server выдаёт версию Ktor/Netty — бесплатная подсказка
+        // тому, кто подбирает известные уязвимости под конкретную версию.
+        header(io.ktor.http.HttpHeaders.Server, "MyMoney")
+    }
 
     install(CallLogging) {
         level = Level.INFO
@@ -39,16 +47,31 @@ fun Application.configureHttp() {
         )
     }
 
-    install(CORS) {
-        // Restrict in production; open for MVP dev to allow local Flutter debugging.
-        anyHost()
-        allowHeader(io.ktor.http.HttpHeaders.Authorization)
-        allowHeader(io.ktor.http.HttpHeaders.ContentType)
-        allowMethod(io.ktor.http.HttpMethod.Options)
-        allowMethod(io.ktor.http.HttpMethod.Get)
-        allowMethod(io.ktor.http.HttpMethod.Post)
-        allowMethod(io.ktor.http.HttpMethod.Put)
-        allowMethod(io.ktor.http.HttpMethod.Delete)
+    // CORS — ограничение браузера, мобильному клиенту он не нужен вообще:
+    // Dio ходит напрямую и preflight не делает. Поэтому в проде плагин
+    // ставится только если явно перечислены источники (появится веб-клиент),
+    // а по умолчанию не ставится вовсе — так `anyHost()` не может случайно
+    // доехать до продакшена и разрешить любому сайту дёргать API из браузера
+    // жертвы. В dev остаётся открытым, иначе не отладить Flutter Web.
+    if (!isProduction || config.http.allowedOrigins.isNotEmpty()) {
+        install(CORS) {
+            if (isProduction) {
+                config.http.allowedOrigins.forEach { origin ->
+                    val scheme = origin.substringBefore("://", missingDelimiterValue = "https")
+                    val host = origin.substringAfter("://")
+                    allowHost(host, schemes = listOf(scheme))
+                }
+            } else {
+                anyHost()
+            }
+            allowHeader(io.ktor.http.HttpHeaders.Authorization)
+            allowHeader(io.ktor.http.HttpHeaders.ContentType)
+            allowMethod(io.ktor.http.HttpMethod.Options)
+            allowMethod(io.ktor.http.HttpMethod.Get)
+            allowMethod(io.ktor.http.HttpMethod.Post)
+            allowMethod(io.ktor.http.HttpMethod.Put)
+            allowMethod(io.ktor.http.HttpMethod.Delete)
+        }
     }
 
     install(StatusPages) {
@@ -68,9 +91,14 @@ fun Application.configureHttp() {
         }
         exception<Throwable> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
+            // Текст исключения наружу отдаём только в dev. В проде сообщения
+            // вроде «ERROR: relation "account" does not exist» или куска SQL
+            // с именами колонок — это бесплатная разведка схемы для того, кто
+            // перебирает запросы. Разработчику они всё ещё доступны в логе.
+            val message = if (isProduction) "Unexpected error" else cause.message ?: "Unexpected error"
             call.respond(
                 HttpStatusCode.InternalServerError,
-                ErrorResponse(ErrorBody("INTERNAL_ERROR", cause.message ?: "Unexpected error")),
+                ErrorResponse(ErrorBody("INTERNAL_ERROR", message)),
             )
         }
     }

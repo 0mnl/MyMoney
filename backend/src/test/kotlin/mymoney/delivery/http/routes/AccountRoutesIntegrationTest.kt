@@ -23,6 +23,7 @@ import mymoney.delivery.http.dto.CreateAccountRequest
 import mymoney.delivery.http.dto.RegisterRequest
 import mymoney.delivery.http.dto.UpdateAccountRequest
 import mymoney.configureApplication
+import mymoney.domain.usecase.account.SeedDefaultAccountUseCase
 import mymoney.test.CapturingVerificationCodeSender
 import mymoney.test.TestPostgres
 import mymoney.test.registerAndVerify
@@ -95,10 +96,11 @@ class AccountRoutesIntegrationTest {
         assertEquals(user.familyId, createdDto.familyId)
         assertEquals(500_00L, createdDto.initialBalance)
 
+        // Проверяем свой счёт поимённо, а не по размеру списка: у семьи с
+        // момента регистрации есть ещё и счёт по умолчанию.
         val list = client.get("/v1/accounts") { header(HttpHeaders.Authorization, "Bearer ${user.accessToken}") }
         val items = json.decodeFromString<List<AccountDto>>(list.bodyAsText())
-        assertEquals(1, items.size)
-        assertEquals(accountId.toString(), items.first().id)
+        assertTrue(items.any { it.id == accountId.toString() }, "созданный счёт не попал в список: $items")
 
         val updated = client.put("/v1/accounts/$accountId") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
@@ -122,12 +124,20 @@ class AccountRoutesIntegrationTest {
         assertTrue(json.decodeFromString<AccountDto>(archived.bodyAsText()).isArchived)
 
         val listAfterArchive = client.get("/v1/accounts") { header(HttpHeaders.Authorization, "Bearer ${user.accessToken}") }
-        assertTrue(json.decodeFromString<List<AccountDto>>(listAfterArchive.bodyAsText()).isEmpty())
+        assertTrue(
+            json.decodeFromString<List<AccountDto>>(listAfterArchive.bodyAsText())
+                .none { it.id == accountId.toString() },
+            "архивный счёт остался в обычном списке",
+        )
 
         val listWithArchived = client.get("/v1/accounts?includeArchived=true") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
         }
-        assertEquals(1, json.decodeFromString<List<AccountDto>>(listWithArchived.bodyAsText()).size)
+        assertTrue(
+            json.decodeFromString<List<AccountDto>>(listWithArchived.bodyAsText())
+                .any { it.id == accountId.toString() },
+            "архивный счёт не вернулся с includeArchived=true",
+        )
 
         val unarchived = client.post("/v1/accounts/$accountId/archive") {
             header(HttpHeaders.Authorization, "Bearer ${user.accessToken}")
@@ -162,8 +172,15 @@ class AccountRoutesIntegrationTest {
         }
         assertEquals(HttpStatusCode.Forbidden, bobUpdatesAlice.status)
 
+        // У Боба есть свой счёт по умолчанию — проверяем не пустоту списка,
+        // а именно отсутствие в нём чужого счёта.
         val bobList = client.get("/v1/accounts") { header(HttpHeaders.Authorization, "Bearer ${bob.accessToken}") }
-        assertTrue(json.decodeFromString<List<AccountDto>>(bobList.bodyAsText()).isEmpty())
+        val bobItems = json.decodeFromString<List<AccountDto>>(bobList.bodyAsText())
+        assertTrue(
+            bobItems.none { it.id == aliceAccountId.toString() },
+            "счёт Алисы виден Бобу: $bobItems",
+        )
+        assertTrue(bobItems.all { it.familyId == bob.familyId }, "в списке Боба чужая семья: $bobItems")
     }
 
     @Test
@@ -212,7 +229,10 @@ class AccountRoutesIntegrationTest {
         assertEquals(HttpStatusCode.NotFound, getDeleted.status)
 
         val list = client.get("/v1/accounts") { header(HttpHeaders.Authorization, "Bearer ${user.accessToken}") }
-        assertTrue(json.decodeFromString<List<AccountDto>>(list.bodyAsText()).isEmpty())
+        assertTrue(
+            json.decodeFromString<List<AccountDto>>(list.bodyAsText()).none { it.id == id.toString() },
+            "удалённый счёт остался в списке",
+        )
     }
 
     @Test
@@ -226,13 +246,22 @@ class AccountRoutesIntegrationTest {
     }
 
     @Test
-    fun `list is empty for freshly-registered user`() = testApplication {
+    fun `freshly-registered user gets one default account`() = testApplication {
         setup()
         val user = registerUser()
         val res = client.get("/v1/accounts") { header(HttpHeaders.Authorization, "Bearer ${user.accessToken}") }
         assertEquals(HttpStatusCode.OK, res.status)
         val list = json.decodeFromString<List<AccountDto>>(res.bodyAsText())
         assertNotNull(list)
-        assertTrue(list.isEmpty())
+
+        // Раньше список был пуст, и это ломало клиента: при включённой
+        // синхронизации он не сеет ничего локально, а ждёт состояние семьи с
+        // сервера. Без счёта экран «Новая операция» не давал добавить ни
+        // одной записи — пользоваться приложением после регистрации было
+        // нельзя. Счёт заводит SeedDefaultAccountUseCase.
+        assertEquals(1, list.size)
+        assertEquals(SeedDefaultAccountUseCase.DEFAULT_ACCOUNT_NAME, list.single().name)
+        assertEquals(SeedDefaultAccountUseCase.DEFAULT_ACCOUNT_TYPE, list.single().type)
+        assertEquals(user.familyId, list.single().familyId)
     }
 }

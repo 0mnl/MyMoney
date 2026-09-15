@@ -8,8 +8,12 @@ import org.slf4j.LoggerFactory
  * Development transport: writes the code to the application log instead of
  * sending mail, so the onboarding flow is testable without SMTP credentials.
  *
- * Refuses to be used in production — `AppModule` picks [SmtpVerificationCodeSender]
- * whenever `mail.host` is configured, and `loadAppConfig` requires that in prod.
+ * There is no real transport yet — the project has no SMTP dependency, and
+ * `AppModule` falls back to this class whenever no [VerificationCodeSender] is
+ * injected, in production as well. Until a real sender exists, a production
+ * deployment writes confirmation codes into the application log and delivers
+ * no mail at all; the extension point is the `VerificationCodeSender` binding
+ * in `AppModule`.
  */
 class LoggingVerificationCodeSender : VerificationCodeSender {
 

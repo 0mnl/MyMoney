@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktor)
     alias(libs.plugins.flyway)
+    // Ktor applies Shadow itself; declaring it here only pins a newer version than
+    // the one Ktor 3.0.3 would bring. See the `shadow` entry in libs.versions.toml.
+    alias(libs.plugins.shadow)
     application
 }
 
@@ -55,6 +58,9 @@ dependencies {
     // Security
     implementation(libs.argon2)
 
+    // Mail (отправка кодов подтверждения по SMTP)
+    implementation(libs.angus.mail)
+
     // Logging
     implementation(libs.logback.classic)
 
@@ -91,4 +97,13 @@ ktor {
     fatJar {
         archiveFileName.set("mymoney-backend.jar")
     }
+}
+
+// Ktor discovers config loaders through META-INF/services/…ConfigLoader, and that file
+// exists in two dependencies: ktor-server-core (Hocon) and ktor-server-config-yaml (Yaml).
+// Shadow overwrites same-named entries instead of concatenating them, so without this the
+// Hocon loader is dropped, application.conf is never parsed, and the fat jar dies with
+// "Neither port nor sslPort specified". Merging keeps both loaders registered.
+tasks.shadowJar {
+    mergeServiceFiles()
 }

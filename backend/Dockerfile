@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
 # --------- Builder ---------
-FROM gradle:8.10-jdk17-alpine AS builder
+# Not the -alpine tag: Temurin/Gradle publish Alpine (musl) images for amd64 only,
+# so the build fails with "no match for platform in manifest" on arm64 hosts such
+# as Apple Silicon. The Debian-based tags are multi-arch.
+FROM gradle:8.10-jdk17 AS builder
 WORKDIR /app
 
 # Copy only what's needed to leverage layer caching.
@@ -13,14 +16,17 @@ COPY src ./src
 RUN gradle --no-daemon buildFatJar
 
 # --------- Runtime ---------
-FROM eclipse-temurin:17-jre-alpine
+# Debian-based for the same multi-arch reason as the builder above.
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # curl for the healthcheck (also handy for debugging inside the container).
-RUN apk add --no-cache curl
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Non-root user — уменьшает риск при exploit'е.
-RUN addgroup -S app && adduser -S app -G app
+RUN groupadd --system app && useradd --system --gid app app
 
 COPY --from=builder /app/build/libs/mymoney-backend.jar /app/app.jar
 RUN chown -R app:app /app
