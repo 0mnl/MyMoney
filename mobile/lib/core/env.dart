@@ -14,7 +14,7 @@ class Env {
   ///
   /// Без завершающего слэша: `ApiClient` склеивает пути вида `/v1/auth/login`.
   /// ───────────────────────────────────────────────────────────────────────
-  static const _productionBaseUrl = 'https://api.example.com';
+  static const _productionBaseUrl = 'https://mymoney.palantiry.ru';
 
   /// Переопределение на время разработки:
   ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
